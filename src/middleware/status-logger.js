@@ -1,45 +1,8 @@
 "use strict";
+const _ = require("lodash");
 
-module.exports = function statusLogger(dependencies) {
-  const name = dependencies.name;
-  const pathToFile = dependencies.pathToFile;
-  const logToConsole = dependencies.logToConsole;
-
-  const _ = require("lodash");
-  const bunyan = require("bunyan");
-
-  function loggerFromFile(name, pathToFile) {
-    let streams = [];
-    if (logToConsole) {
-      streams.push({
-        level: "debug",
-        stream: process.stdout
-      });
-    } else {
-      streams.push({
-        type: "rotating-file",
-        path: pathToFile,
-        period: "1d",
-        count: 52
-      });
-    }
-
-    let logger = bunyan.createLogger({
-      name: name,
-      streams: streams
-    });
-
-    // Reopen file streams on signal
-    process.on("SIGUSR2", function() {
-      logger.reopenFileStreams();
-    });
-
-    return logger;
-  }
-
-  const currentLogger = loggerFromFile(name, pathToFile);
-
-  function requestLogger(req, res, next) {
+module.exports = function statusLogger(loggerInstance) {
+  return function requestLogger(req, res, next) {
     if (!_.isObject(req._startTime)) {
       req._startTime = new Date();
     }
@@ -86,16 +49,12 @@ module.exports = function statusLogger(dependencies) {
         res: cleanRes
       };
 
-      currentLogger.info(msg);
+      loggerInstance.info(msg);
     }
 
     res.on("finish", logRequest);
     res.on("close", logRequest);
 
     return next();
-  }
-
-  return {
-    requestLogger
   };
 };
