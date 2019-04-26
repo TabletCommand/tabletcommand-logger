@@ -1,11 +1,13 @@
 "use strict";
 
-var metricsMiddleware = require("./dist/middleware/metrics");
-var loggerMiddleware = require("./dist/middleware/logger");
 var logger = require("./dist/bunyan-logger");
+var loggerMiddleware = require("./dist/middleware/logger");
+var metricsMiddleware = require("./dist/middleware/metrics");
+var statusLoggerMiddleware = require("./dist/middleware/status-logger");
 
 module.exports = {
-  metricsMiddleware: metricsMiddleware,
+  logger: logger,
   loggerMiddleware: loggerMiddleware,
-  logger: logger
+  metricsMiddleware: metricsMiddleware,
+  statusLoggerMiddleware: statusLoggerMiddleware
 };
