@@ -10,16 +10,17 @@ function loggerFunc(name, filePath, logToConsole) {
       level: "info",
       stream: process.stdout
     });
+  } else {
+    streams.push({
+      type: "rotating-file",
+      path: filePath,
+      period: "1d",
+      // daily rotation
+      count: 52 // keep 3 back copies
+
+    });
   }
 
-  streams.push({
-    type: "rotating-file",
-    path: filePath,
-    period: "1d",
-    // daily rotation
-    count: 52 // keep 3 back copies
-
-  });
   var logger = bunyan.createLogger({
     name: name,
     streams: streams
