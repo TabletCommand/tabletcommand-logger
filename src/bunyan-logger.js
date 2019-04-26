@@ -7,7 +7,7 @@ function loggerFunc(name, filePath, logToConsole) {
 
   if (logToConsole) {
     streams.push({
-      level: "info",
+      level: "debug",
       stream: process.stdout
     });
   } else {
