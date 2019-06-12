@@ -10,10 +10,11 @@ module.exports = function loggerMiddleware(loggerInstance) {
         method: req.method,
         url: req.originalUrl,
         protocol: req.protocol,
+        body: req.body,
         hostname: req.hostname,
         httpVersion: `${req.httpVersionMajor}.${req.httpVersionMinor}`,
         userAgent: req.headers["user-agent"],
-        status: res._header ? res.statusCode : undefined
+        status: res.statusCode ? res.statusCode : 0
       }, "access_log");
     });
     next();
