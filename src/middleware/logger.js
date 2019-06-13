@@ -14,6 +14,7 @@ module.exports = function loggerMiddleware(loggerInstance) {
         hostname: req.hostname,
         httpVersion: `${req.httpVersionMajor}.${req.httpVersionMinor}`,
         userAgent: req.headers["user-agent"],
+        headers: req.headers,
         status: res.statusCode ? res.statusCode : 0
       }, "access_log");
     });
