@@ -8,13 +8,17 @@ var os = require("os");
 
 var expressStatsd = require("express-statsd");
 
-var monitorRequest = expressStatsd(); // Add an express-statsd key that looks like http.post.api.hello.world for a HTTP POST to /api/hello/world URL
+var monitorRequest = expressStatsd();
+
+var debug = require("debug")("tabletcommand-logger:middleware/metrics"); // Add an express-statsd key that looks like http.post.api.hello.world for a HTTP POST to /api/hello/world URL
 // See https://github.com/uber/express-statsd
 
+
 module.exports = function metricsModule(filterFunction) {
-  function defaultFilter(path, callback) {
+  function defaultFilter(pathIn, callback) {
     var uuidRegex = /[-a-f\d]{36}/i;
     var mongoIdRegex = /[a-f\d]{24}/i;
+    var path = pathIn;
 
     if (path.match(uuidRegex) || path.match(mongoIdRegex)) {
       var parts = path.split(".");
@@ -24,6 +28,10 @@ module.exports = function metricsModule(filterFunction) {
         return !(isUUID || isMongoId);
       });
       path = cleanParts.join(".");
+    }
+
+    if (path !== pathIn) {
+      debug("Cleaned up path: ".concat(path, "."));
     }
 
     return callback(path);
@@ -46,6 +54,7 @@ module.exports = function metricsModule(filterFunction) {
 
       return filterFunc(path, function (filteredPath) {
         req.statsdKey = [hostname, env, "http", method, filteredPath].join(".");
+        debug("req.statsdKey: ".concat(req.statsdKey));
         monitorRequest(req, res);
         return next();
       });

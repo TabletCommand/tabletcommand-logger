@@ -18,13 +18,8 @@
     "hte"
   ],
   "ignoreWords": [],
-  "dictionaryDefinitions": [{
-    "name": "cities",
-    "path": "./sampleDictionaries/cities.txt"
-  }],
-  "dictionaries": [
-    "cities"
-  ],
+  "dictionaryDefinitions": [],
+  "dictionaries": [],
   "languageSettings": [{
     "languageId": "*",
     "dictionaries": []

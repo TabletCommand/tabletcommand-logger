@@ -6,14 +6,16 @@ const _ = require("lodash");
 const os = require("os");
 const expressStatsd = require("express-statsd");
 const monitorRequest = expressStatsd();
+const debug = require("debug")("tabletcommand-logger:middleware/metrics");
 
 // Add an express-statsd key that looks like http.post.api.hello.world for a HTTP POST to /api/hello/world URL
 // See https://github.com/uber/express-statsd
 
 module.exports = function metricsModule(filterFunction) {
-  function defaultFilter(path, callback) {
+  function defaultFilter(pathIn, callback) {
     const uuidRegex = /[-a-f\d]{36}/i;
     const mongoIdRegex = /[a-f\d]{24}/i;
+    let path = pathIn;
     if (path.match(uuidRegex) || path.match(mongoIdRegex)) {
       const parts = path.split(".");
       const cleanParts = parts.filter(function(part) {
@@ -22,6 +24,9 @@ module.exports = function metricsModule(filterFunction) {
         return !(isUUID || isMongoId);
       });
       path = cleanParts.join(".");
+    }
+    if (path !== pathIn) {
+      debug(`Cleaned up path: ${path}.`);
     }
 
     return callback(path);
@@ -44,7 +49,7 @@ module.exports = function metricsModule(filterFunction) {
 
       return filterFunc(path, function(filteredPath) {
         req.statsdKey = [hostname, env, "http", method, filteredPath].join(".");
-
+        debug(`req.statsdKey: ${req.statsdKey}`);
         monitorRequest(req, res);
         return next();
       });
