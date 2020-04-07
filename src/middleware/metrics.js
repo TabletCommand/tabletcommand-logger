@@ -15,7 +15,7 @@ module.exports = function metricsModule(filterFunction) {
     const uuidRegex = /[-a-f\d]{36}/i;
     const mongoIdRegex = /[a-f\d]{24}/i;
     if (path.match(uuidRegex) || path.match(mongoIdRegex)) {
-      let parts = path.split(".");
+      const parts = path.split(".");
       const cleanParts = parts.filter(function(part) {
         const isUUID = part.match(uuidRegex);
         const isMongoId = part.match(mongoIdRegex);
@@ -33,7 +33,7 @@ module.exports = function metricsModule(filterFunction) {
       const env = process.env.NODE_ENV || "production";
       let method = req.method || "unknown_method";
       method = method.toLowerCase();
-      let urlName = req.url || "unknown_url";
+      const urlName = req.url || "unknown_url";
       let path = parse(urlName).pathname.toLowerCase();
       path = path.replace(/\//g, " ").trim().replace(/\s/g, ".");
 

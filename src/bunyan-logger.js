@@ -3,7 +3,7 @@
 const bunyan = require("bunyan");
 
 function loggerFunc(name, filePath, logToConsole) {
-  let streams = [];
+  const streams = [];
 
   if (logToConsole) {
     streams.push({
