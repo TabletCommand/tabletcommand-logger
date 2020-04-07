@@ -5,7 +5,7 @@ const eslint = require("gulp-eslint");
 const mocha = require("gulp-mocha");
 const babel = require("gulp-babel");
 
-gulp.task("lint", function() {
+gulp.task("lint", function lintTask() {
   const sources = [
     "*.js",
     "src/*.js",
@@ -18,7 +18,7 @@ gulp.task("lint", function() {
     .pipe(eslint.failAfterError());
 });
 
-gulp.task("test", gulp.series("lint", function testJob() {
+gulp.task("test", gulp.series("lint", function testTask() {
   const tests = [
     "test/*.js"
   ];
@@ -31,7 +31,7 @@ gulp.task("test", gulp.series("lint", function testJob() {
     }));
 }));
 
-gulp.task("transpile", function() {
+gulp.task("transpile", function transpileTask() {
   const sources = [
     "src/*.js",
     "src/middleware/*.js"
