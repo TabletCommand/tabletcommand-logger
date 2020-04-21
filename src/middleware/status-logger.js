@@ -8,12 +8,23 @@ module.exports = function statusLogger(loggerInstance) {
     }
 
     res.bodyCopy = null;
+    res.outputCopy = null;
 
     // Save a copy of the response body
-    var oldJSON = res.json.bind(res);
-    res.json = (body) => {
+    const oldJSON = res.json.bind(res);
+
+    // Used when using res.json(body);
+    res.json = function newJson(body) {
       res.bodyCopy = body;
       oldJSON(body);
+    };
+
+    const oldEnd = res.end.bind(res);
+
+    // Used when using res.end(someOutput);
+    res.end = function newEnd(output) {
+      res.outputCopy = output;
+      oldEnd(output);
     };
 
     function logRequest() {
@@ -37,6 +48,7 @@ module.exports = function statusLogger(loggerInstance) {
 
       const cleanRes = _.pick(res, [
         "bodyCopy",
+        "outputCopy",
         "statusCode"
       ]);
 

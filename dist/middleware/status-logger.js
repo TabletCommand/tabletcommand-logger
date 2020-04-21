@@ -8,13 +8,21 @@ module.exports = function statusLogger(loggerInstance) {
       req._startTime = new Date();
     }
 
-    res.bodyCopy = null; // Save a copy of the response body
+    res.bodyCopy = null;
+    res.outputCopy = null; // Save a copy of the response body
 
-    var oldJSON = res.json.bind(res);
+    var oldJSON = res.json.bind(res); // Used when using res.json(body);
 
-    res.json = function (body) {
+    res.json = function newJson(body) {
       res.bodyCopy = body;
       oldJSON(body);
+    };
+
+    var oldEnd = res.end.bind(res); // Used when using res.end(someOutput);
+
+    res.end = function newEnd(output) {
+      res.outputCopy = output;
+      oldEnd(output);
     };
 
     function logRequest() {
@@ -27,7 +35,7 @@ module.exports = function statusLogger(loggerInstance) {
 
       var cleanReq = _.pick(req, ["body", "departmentLog", "headers", "httpVersion", "method", "originalUrl", "query", "path"]);
 
-      var cleanRes = _.pick(res, ["bodyCopy", "statusCode"]);
+      var cleanRes = _.pick(res, ["bodyCopy", "outputCopy", "statusCode"]);
 
       if (_.isObject(req._startTime) && req._startTime instanceof Date) {
         cleanRes.responseTime = Date.now() - req._startTime;
