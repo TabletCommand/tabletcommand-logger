@@ -2,6 +2,19 @@
 const _ = require("lodash");
 
 module.exports = function statusLogger(loggerInstance) {
+  function shouldIgnore(req, res) {
+    if (_.isObject(res) && res.statusCode === 304) {
+      return true;
+    }
+
+    const userAgent = _.get(req, "headers.user-agent");
+    if (_.isString(userAgent) && userAgent.match(/Mozilla/i)) {
+      return true;
+    }
+
+    return false;
+  }
+
   return function requestLogger(req, res, next) {
     if (!_.isObject(req._startTime)) {
       req._startTime = new Date();
@@ -31,7 +44,7 @@ module.exports = function statusLogger(loggerInstance) {
       res.removeListener("finish", logRequest);
       res.removeListener("close", logRequest);
 
-      if (res.statusCode === 304) {
+      if (shouldIgnore(req, res)) {
         return;
       }
 
