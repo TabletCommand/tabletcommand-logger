@@ -32,13 +32,6 @@ module.exports = function statusLogger(loggerInstance) {
       oldJSON(body);
     };
 
-    var oldEnd = res.end.bind(res); // Used when using res.end(someOutput);
-
-    res.end = function newEnd(output) {
-      res.outputCopy = output;
-      oldEnd(output);
-    };
-
     function logRequest() {
       res.removeListener("finish", logRequest);
       res.removeListener("close", logRequest);
@@ -49,7 +42,7 @@ module.exports = function statusLogger(loggerInstance) {
 
       var cleanReq = _.pick(req, ["body", "departmentLog", "headers", "httpVersion", "method", "originalUrl", "query", "path"]);
 
-      var cleanRes = _.pick(res, ["bodyCopy", "outputCopy", "statusCode"]);
+      var cleanRes = _.pick(res, ["bodyCopy", "statusCode"]);
 
       if (_.isObject(req._startTime) && req._startTime instanceof Date) {
         cleanRes.responseTime = Date.now() - req._startTime;

@@ -32,14 +32,6 @@ module.exports = function statusLogger(loggerInstance) {
       oldJSON(body);
     };
 
-    const oldEnd = res.end.bind(res);
-
-    // Used when using res.end(someOutput);
-    res.end = function newEnd(output) {
-      res.outputCopy = output;
-      oldEnd(output);
-    };
-
     function logRequest() {
       res.removeListener("finish", logRequest);
       res.removeListener("close", logRequest);
@@ -61,7 +53,6 @@ module.exports = function statusLogger(loggerInstance) {
 
       const cleanRes = _.pick(res, [
         "bodyCopy",
-        "outputCopy",
         "statusCode"
       ]);
 
