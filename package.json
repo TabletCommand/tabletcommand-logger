@@ -1,6 +1,6 @@
 {
   "name": "tabletcommand-logger",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "description": "Tablet Command Logging Configuration",
   "scripts": {
     "test": "./node_modules/gulp/bin/gulp.js",
