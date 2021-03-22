@@ -1,6 +1,6 @@
 {
   "name": "tabletcommand-logger",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "description": "Tablet Command Logging Configuration",
   "scripts": {
     "build": "gulp ts",
@@ -13,6 +13,8 @@
     "type": "git",
     "url": "git://github.com/tabletcommand/tabletcommand-logger.git"
   },
+  "main": "build/index.js",
+  "types": "definitions/index.d.ts",
   "dependencies": {
     "bunyan": "^1.8.15",
     "debug": "^4.3.1",
