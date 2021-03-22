@@ -1,5 +1,8 @@
 {
   "compilerOptions": {
+    "declaration": true,
+    "declarationDir": "../definitions",
+    "declarationMap": true,
     "baseUrl": "./",
     "esModuleInterop": true,
     "module": "commonjs",
