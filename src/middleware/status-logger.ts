@@ -30,24 +30,23 @@ export default function statusLogger(logger: bunyan) {
     }
 
     res.bodyCopy = null;
-    res.chunkCopy = null;
 
     // Save a copy of the response body
     const oldJSON = res.json.bind(res);
 
     // Used when using res.json(body);
-    res.json = function newJson(body: unknown): Response {
-      res.bodyCopy = body;
+    res.json = function newJson(body: unknown|string): Response {
+      if (_.isString(body)) {
+        try {
+          res.bodyCopy = JSON.parse(body);
+        } catch (e) {
+          res.bodyCopy = body;
+        }  
+      } else {
+        res.bodyCopy = body;
+      }
       oldJSON(body);
       return res;
-    };
-
-
-    const oldEnd = res.end.bind(res);
-    // Used when using res.end(someOutput);
-    res.end = function newEnd(chunk: unknown) {
-      res.chunkCopy = chunk;
-      oldEnd(chunk);
     };
 
     function logRequest() {
@@ -71,7 +70,6 @@ export default function statusLogger(logger: bunyan) {
 
       const cleanRes = _.pick(res, [
         "bodyCopy",
-        "chunkCopy",
         "responseTime",
         "statusCode",
       ]);

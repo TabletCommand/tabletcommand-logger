@@ -10,16 +10,10 @@ gulp.task("clean", function() {
   });
 });
 
-gulp.task("copy", function() {
-  return gulp
-    .src("src/views/*")
-    .pipe(copy("build"));
-});
-
 gulp.task("ts",
   gulp.series(
     "clean",
-    gulp.parallel(shell.task("tsc -p ./src"), "copy")
+    gulp.parallel(shell.task("tsc -p ./src"))
   ));
 
 gulp.task("tslint", gulp.series(shell.task("eslint ./src")));

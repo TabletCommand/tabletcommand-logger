@@ -23,20 +23,23 @@ function statusLogger(logger) {
             res.responseTime = new Date().valueOf() - req._startTime.valueOf();
         }
         res.bodyCopy = null;
-        res.chunkCopy = null;
         // Save a copy of the response body
         const oldJSON = res.json.bind(res);
         // Used when using res.json(body);
         res.json = function newJson(body) {
-            res.bodyCopy = body;
+            if (lodash_1.default.isString(body)) {
+                try {
+                    res.bodyCopy = JSON.parse(body);
+                }
+                catch (e) {
+                    res.bodyCopy = body;
+                }
+            }
+            else {
+                res.bodyCopy = body;
+            }
             oldJSON(body);
             return res;
-        };
-        const oldEnd = res.end.bind(res);
-        // Used when using res.end(someOutput);
-        res.end = function newEnd(chunk) {
-            res.chunkCopy = chunk;
-            oldEnd(chunk);
         };
         function logRequest() {
             res.removeListener("finish", logRequest);
@@ -56,7 +59,6 @@ function statusLogger(logger) {
             ]);
             const cleanRes = lodash_1.default.pick(res, [
                 "bodyCopy",
-                "chunkCopy",
                 "responseTime",
                 "statusCode",
             ]);
