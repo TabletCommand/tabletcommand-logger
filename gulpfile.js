@@ -1,26 +1,33 @@
-"use strict";
-
 const gulp = require("gulp");
-const eslint = require("gulp-eslint");
+const shell = require("gulp-shell");
 const mocha = require("gulp-mocha");
-const babel = require("gulp-babel");
+const del = require("del");
+const copy = require("gulp-copy");
 
-gulp.task("lint", function lintTask() {
-  const sources = [
-    "*.js",
-    "src/*.js",
-    "src/middleware/*.js",
-    "test/*.js"
-  ];
-  return gulp.src(sources)
-    .pipe(eslint())
-    .pipe(eslint.format())
-    .pipe(eslint.failAfterError());
+gulp.task("clean", function() {
+  return del("build/**", {
+    force: true
+  });
 });
 
-gulp.task("test", gulp.series("lint", function testTask() {
+gulp.task("copy", function() {
+  return gulp
+    .src("src/views/*")
+    .pipe(copy("build"));
+});
+
+gulp.task("ts",
+  gulp.series(
+    "clean",
+    gulp.parallel(shell.task("tsc -p ./src"), "copy")
+  ));
+
+gulp.task("tslint", gulp.series(shell.task("eslint ./src")));
+gulp.task("lint", gulp.series("tslint"));
+
+gulp.task("test", gulp.series(gulp.parallel("tslint", "ts"), function runTests() {
   const tests = [
-    "test/*.js"
+    "build/test/**/*.js"
   ];
   const srcOpts = {
     read: false
@@ -31,17 +38,8 @@ gulp.task("test", gulp.series("lint", function testTask() {
     }));
 }));
 
-gulp.task("transpile", function transpileTask() {
-  const sources = [
-    "src/*.js",
-    "src/middleware/*.js"
-  ];
-  const srcOpts = {
-    base: "src"
-  };
-  return gulp.src(sources, srcOpts)
-    .pipe(babel())
-    .pipe(gulp.dest("dist"));
-});
+gulp.task("build", gulp.series("ts"));
 
-gulp.task("default", gulp.series("lint", gulp.series("test", gulp.series("transpile"))));
+gulp.task("watch", gulp.series("clean", shell.task("tsc -p ./src --watch")));
+
+gulp.task("default", gulp.series("test"));
