@@ -31,33 +31,39 @@ function metrics(filter) {
         }
         return path;
     }
+    function setStatsDKey(req, hostname, env) {
+        let method = req.method || "unknown_method";
+        method = method.toLowerCase();
+        const defaultBase = "http://localhost";
+        const urlItem = new url_1.URL(req.url, defaultBase);
+        let path = urlItem.pathname.toLowerCase();
+        path = path.replace(/\//g, " ").trim().replace(/\s/g, ".");
+        let filterFunc = defaultFilter;
+        if (lodash_1.default.isFunction(filter)) {
+            filterFunc = filter;
+        }
+        const filteredPath = filterFunc(path);
+        req.statsdKey = [
+            hostname,
+            env,
+            "http",
+            method,
+            filteredPath
+        ].join(".");
+        debug(`req.statsdKey: ${req.statsdKey}`);
+    }
     function statsd() {
         return function statsdFunc(req, res, next) {
             const hostname = process.env.NODE_STATSD_PREFIX || os_1.default.hostname();
             const env = process.env.NODE_ENV || "production";
-            let method = req.method || "unknown_method";
-            method = method.toLowerCase();
-            let path = (new url_1.URL(req.url)).pathname.toLowerCase();
-            path = path.replace(/\//g, " ").trim().replace(/\s/g, ".");
-            let filterFunc = defaultFilter;
-            if (lodash_1.default.isFunction(filter)) {
-                filterFunc = filter;
-            }
-            const filteredPath = filterFunc(path);
-            req.statsdKey = [
-                hostname,
-                env,
-                "http",
-                method,
-                filteredPath
-            ].join(".");
-            debug(`req.statsdKey: ${req.statsdKey}`);
+            setStatsDKey(req, hostname, env);
             monitorRequest(req, res);
             return next();
         };
     }
     return {
         defaultFilter,
+        setStatsDKey,
         statsd,
     };
 }

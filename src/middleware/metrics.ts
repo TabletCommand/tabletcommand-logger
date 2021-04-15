@@ -34,27 +34,33 @@ export default function metrics(filter?: FilterFunction) {
     return path;
   }
 
+  function setStatsDKey(req: Request, hostname: string, env: string) {
+    let method = req.method || "unknown_method";
+    method = method.toLowerCase();
+    const defaultBase =  "http://localhost";
+    const urlItem = new URL(req.url, defaultBase);
+    let path = urlItem.pathname.toLowerCase();
+    path = path.replace(/\//g, " ").trim().replace(/\s/g, ".");
+    let filterFunc = defaultFilter;
+    if (_.isFunction(filter)) {
+      filterFunc = filter;
+    }
+    const filteredPath = filterFunc(path);
+    req.statsdKey = [
+      hostname,
+      env,
+      "http",
+      method,
+      filteredPath
+    ].join(".");
+    debug(`req.statsdKey: ${req.statsdKey}`);
+  }
+
   function statsd() {
     return function statsdFunc(req: Request, res: Response, next: NextFunction) {
       const hostname = process.env.NODE_STATSD_PREFIX || os.hostname();
       const env = process.env.NODE_ENV || "production";
-      let method = req.method || "unknown_method";
-      method = method.toLowerCase();
-      let path = (new URL(req.url)).pathname.toLowerCase();
-      path = path.replace(/\//g, " ").trim().replace(/\s/g, ".");
-      let filterFunc = defaultFilter;
-      if (_.isFunction(filter)) {
-        filterFunc = filter;
-      }
-      const filteredPath = filterFunc(path);
-      req.statsdKey = [
-        hostname, 
-        env, 
-        "http", 
-        method, 
-        filteredPath
-      ].join(".");
-      debug(`req.statsdKey: ${req.statsdKey}`);
+      setStatsDKey(req, hostname, env);
       monitorRequest(req, res);
       return next();
     };
@@ -62,6 +68,7 @@ export default function metrics(filter?: FilterFunction) {
 
   return {
     defaultFilter,
+    setStatsDKey,
     statsd,
   };
 }
