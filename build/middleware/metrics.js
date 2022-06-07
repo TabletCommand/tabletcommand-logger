@@ -8,11 +8,11 @@ const url_1 = require("url");
 const lodash_1 = __importDefault(require("lodash"));
 const debug_1 = __importDefault(require("debug"));
 const express_statsd_1 = __importDefault(require("express-statsd"));
-const monitorRequest = express_statsd_1.default();
+const monitorRequest = (0, express_statsd_1.default)();
 // Add an express-statsd key that looks like http.post.api.hello.world for a HTTP POST to /api/hello/world URL
 // See https://github.com/uber/express-statsd
 function metrics(filter) {
-    const debug = debug_1.default("tabletcommand-logger:middleware/metrics");
+    const debug = (0, debug_1.default)("tabletcommand-logger:middleware/metrics");
     function defaultFilter(pathIn) {
         const uuidRegex = /[-a-f\d]{36}/i;
         const mongoIdRegex = /[a-f\d]{24}/i;

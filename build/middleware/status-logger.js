@@ -14,13 +14,16 @@ function shouldIgnore(req, res) {
     }
     return false;
 }
+function requestDuration(endTime, startTime) {
+    if (!lodash_1.default.isObject(startTime) || !lodash_1.default.isDate(startTime)) {
+        return 0;
+    }
+    return endTime.valueOf() - startTime.valueOf();
+}
 function statusLogger(logger) {
     return function requestLogger(req, res, next) {
         if (!lodash_1.default.isObject(req._startTime)) {
             req._startTime = new Date();
-        }
-        if (lodash_1.default.isObject(req._startTime) && req._startTime instanceof Date) {
-            res.responseTime = new Date().valueOf() - req._startTime.valueOf();
         }
         res.bodyCopy = null;
         // Save a copy of the response body
@@ -39,6 +42,7 @@ function statusLogger(logger) {
                 res.bodyCopy = body;
             }
             oldJSON(body);
+            res.responseTime = requestDuration(new Date(), req._startTime);
             return res;
         };
         function logRequest() {

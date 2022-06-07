@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const chai_1 = require("chai");
 const metrics_1 = __importDefault(require("../middleware/metrics"));
-const metrics = metrics_1.default();
+const metrics = (0, metrics_1.default)();
 describe("Metrics Middleware", function () {
     context("Default Filter", () => {
         it("removes uuid from end of paths", function () {

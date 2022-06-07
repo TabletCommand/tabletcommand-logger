@@ -1,8 +1,8 @@
 import bunyan from "bunyan";
-import { 
+import {
   NextFunction,
-  Request, 
-  Response, 
+  Request,
+  Response,
 } from "express";
 import _ from "lodash";
 
@@ -19,14 +19,18 @@ function shouldIgnore(req: Request, res: Response): boolean {
   return false;
 }
 
+function requestDuration(endTime: Date, startTime?: Date): number {
+  if (!_.isObject(startTime) || !_.isDate(startTime)) {
+    return 0;
+  }
+
+  return endTime.valueOf() - startTime.valueOf();
+}
+
 export default function statusLogger(logger: bunyan) {
   return function requestLogger(req: Request, res: Response, next: NextFunction) {
     if (!_.isObject(req._startTime)) {
       req._startTime = new Date();
-    }
-
-    if (_.isObject(req._startTime) && req._startTime instanceof Date) {
-      res.responseTime = new Date().valueOf() - req._startTime.valueOf();
     }
 
     res.bodyCopy = null;
@@ -35,17 +39,18 @@ export default function statusLogger(logger: bunyan) {
     const oldJSON = res.json.bind(res);
 
     // Used when using res.json(body);
-    res.json = function newJson(body: unknown|string): Response {
+    res.json = function newJson(body: unknown | string): Response {
       if (_.isString(body)) {
         try {
           res.bodyCopy = JSON.parse(body);
         } catch (e) {
           res.bodyCopy = body;
-        }  
+        }
       } else {
         res.bodyCopy = body;
       }
       oldJSON(body);
+      res.responseTime = requestDuration(new Date(), req._startTime);
       return res;
     };
 
@@ -82,7 +87,7 @@ export default function statusLogger(logger: bunyan) {
 
     res.on("finish", logRequest);
     res.on("close", logRequest);
-  
+
     return next();
   };
 }
