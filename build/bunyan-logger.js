@@ -4,7 +4,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const bunyan_1 = __importDefault(require("bunyan"));
-function logger(name, filePath, logToConsole) {
+function logger(name, filePath, logToConsole, logToFile) {
+    const loggingEnabled = logToConsole === true || logToFile === true;
+    if (!loggingEnabled) {
+        return null;
+    }
     const streams = [];
     if (logToConsole) {
         const cfg = {
@@ -13,7 +17,7 @@ function logger(name, filePath, logToConsole) {
         };
         streams.push(cfg);
     }
-    else {
+    if (logToFile) {
         const cfg = {
             type: "rotating-file",
             path: filePath,

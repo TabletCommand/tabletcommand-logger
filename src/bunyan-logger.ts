@@ -1,6 +1,11 @@
 import bunyan, { Stream } from "bunyan";
 
-export default function logger(name: string, filePath: string, logToConsole: boolean): bunyan {
+export default function logger(name: string, filePath: string, logToConsole: boolean, logToFile: boolean): bunyan | null {
+  const loggingEnabled = logToConsole === true || logToFile === true;
+  if (!loggingEnabled) {
+    return null;
+  }
+
   const streams: Stream[] = [];
   if (logToConsole) {
     const cfg: Stream = {
@@ -8,7 +13,8 @@ export default function logger(name: string, filePath: string, logToConsole: boo
       stream: process.stdout,
     };
     streams.push(cfg);
-  } else {
+  }
+  if (logToFile) {
     const cfg: Stream = {
       type: "rotating-file",
       path: filePath,
@@ -17,11 +23,12 @@ export default function logger(name: string, filePath: string, logToConsole: boo
     };
     streams.push(cfg);
   }
+
   const loggerClient = bunyan.createLogger({
     name,
     streams,
   });
-  
+
   // Reopen file streams on signal
   process.on("SIGUSR2", () => {
     loggerClient.reopenFileStreams();
