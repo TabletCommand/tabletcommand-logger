@@ -32,7 +32,7 @@ describe("Metrics Middleware", function() {
 
   context("setStatsDKey", () => {
     it("Parses URL without a set base hostname", () => {
-      const sampleUrl = "/api/v2/cad-vehicle-status?apikey=somekey";
+      const sampleUrl = "/api/v2/cad-vehicle-status?apikey=some123key";
       const req: Partial<Request> = {
         method: "POST",
         url: sampleUrl,

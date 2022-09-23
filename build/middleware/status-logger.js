@@ -48,7 +48,7 @@ function statusLogger(logger) {
         function logRequest() {
             res.removeListener("finish", logRequest);
             res.removeListener("close", logRequest);
-            if (shouldIgnore(req, res)) {
+            if (shouldIgnore(req, res) || !logger) {
                 return;
             }
             const cleanReq = lodash_1.default.pick(req, [

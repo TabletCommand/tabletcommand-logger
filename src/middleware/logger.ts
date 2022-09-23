@@ -5,11 +5,15 @@ import {
   Response,
 } from "express";
 
-export default function loggerMiddleware(logger: bunyan) {
+export default function loggerMiddleware(logger?: bunyan) {
   return function accessLogMiddleware(req: Request, res: Response, next: NextFunction) {
     // This doesn't fire the log immediately, but waits until the response is finished
     // This means we have a chance of logging the response code
     res.on("finish", () => {
+      // Skip this if no logger is set
+      if (!logger) {
+        return;
+      }
       logger.info({
         remoteAddress: req.ip,
         method: req.method,
@@ -28,6 +32,6 @@ export default function loggerMiddleware(logger: bunyan) {
         status: res.statusCode ? res.statusCode : 0
       }, "access_log");
     });
-    next();
+    return next();
   };
 }

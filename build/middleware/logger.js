@@ -5,6 +5,10 @@ function loggerMiddleware(logger) {
         // This doesn't fire the log immediately, but waits until the response is finished
         // This means we have a chance of logging the response code
         res.on("finish", () => {
+            // Skip this if no logger is set
+            if (!logger) {
+                return;
+            }
             logger.info({
                 remoteAddress: req.ip,
                 method: req.method,
@@ -23,7 +27,7 @@ function loggerMiddleware(logger) {
                 status: res.statusCode ? res.statusCode : 0
             }, "access_log");
         });
-        next();
+        return next();
     };
 }
 exports.default = loggerMiddleware;

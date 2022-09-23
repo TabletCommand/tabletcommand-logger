@@ -27,7 +27,7 @@ function requestDuration(endTime: Date, startTime?: Date): number {
   return endTime.valueOf() - startTime.valueOf();
 }
 
-export default function statusLogger(logger: bunyan) {
+export default function statusLogger(logger?: bunyan) {
   return function requestLogger(req: Request, res: Response, next: NextFunction) {
     if (!_.isObject(req._startTime)) {
       req._startTime = new Date();
@@ -58,7 +58,7 @@ export default function statusLogger(logger: bunyan) {
       res.removeListener("finish", logRequest);
       res.removeListener("close", logRequest);
 
-      if (shouldIgnore(req, res)) {
+      if (shouldIgnore(req, res) || !logger) {
         return;
       }
 
