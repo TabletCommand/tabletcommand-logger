@@ -43,5 +43,18 @@ describe("Metrics Middleware", function () {
             chai_1.assert.equal(req.statsdKey, expectedStatsdKey);
         });
     });
+    context("cleanUpParams", () => {
+        it("cleans up params", () => {
+            const req = {
+                url: "/api/a1/admin/department/abcd",
+                params: {
+                    departmentId: "abcd",
+                    x123: "admin",
+                }
+            };
+            const path = metrics.cleanUpParams(req);
+            chai_1.assert.strictEqual(path, "api.a1.x123.department.departmentId");
+        });
+    });
 });
 //# sourceMappingURL=middleware-metrics.js.map

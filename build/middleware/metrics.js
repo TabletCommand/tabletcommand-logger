@@ -34,10 +34,7 @@ function metrics(filter) {
     function setStatsDKey(req, hostname, env) {
         let method = req.method || "unknown_method";
         method = method.toLowerCase();
-        const defaultBase = "http://localhost";
-        const urlItem = new url_1.URL(req.url, defaultBase);
-        let path = urlItem.pathname.toLowerCase();
-        path = path.replace(/\//g, " ").trim().replace(/\s/g, ".");
+        const path = cleanUpParams(req);
         let filterFunc = defaultFilter;
         if (lodash_1.default.isFunction(filter)) {
             filterFunc = filter;
@@ -61,10 +58,28 @@ function metrics(filter) {
             return next();
         };
     }
+    function cleanUpParams(req) {
+        var _a, _b;
+        const defaultBase = "http://localhost";
+        const urlItem = new url_1.URL((_a = req.url) !== null && _a !== void 0 ? _a : "/", defaultBase);
+        let path = urlItem.pathname.toLowerCase();
+        // Attempt to replace :params values with their keys
+        if (lodash_1.default.isObject(req.params)) {
+            lodash_1.default.forEach((_b = req.params) !== null && _b !== void 0 ? _b : {}, (value, key) => {
+                const foundIndex = path.lastIndexOf(value);
+                if (foundIndex >= 0) {
+                    path = path.substring(0, foundIndex) + key + path.substring(foundIndex + value.length);
+                }
+            });
+        }
+        path = path.replace(/\//g, " ").trim().replace(/\s/g, ".");
+        return path;
+    }
     return {
         defaultFilter,
         setStatsDKey,
         statsd,
+        cleanUpParams,
     };
 }
 exports.default = metrics;

@@ -37,10 +37,7 @@ export default function metrics(filter?: FilterFunction) {
   function setStatsDKey(req: Request, hostname: string, env: string) {
     let method = req.method || "unknown_method";
     method = method.toLowerCase();
-    const defaultBase =  "http://localhost";
-    const urlItem = new URL(req.url, defaultBase);
-    let path = urlItem.pathname.toLowerCase();
-    path = path.replace(/\//g, " ").trim().replace(/\s/g, ".");
+    const path = cleanUpParams(req);
     let filterFunc = defaultFilter;
     if (_.isFunction(filter)) {
       filterFunc = filter;
@@ -66,10 +63,30 @@ export default function metrics(filter?: FilterFunction) {
     };
   }
 
+  function cleanUpParams(req: Partial<Request>): string {
+    const defaultBase = "http://localhost";
+    const urlItem = new URL(req.url ?? "/", defaultBase);
+    let path = urlItem.pathname.toLowerCase();
+
+    // Attempt to replace :params values with their keys
+    if (_.isObject(req.params)) {
+      _.forEach(req.params ?? {}, (value, key) => {
+        const foundIndex = path.lastIndexOf(value);
+        if (foundIndex >= 0) {
+          path = path.substring(0, foundIndex) + key + path.substring(foundIndex + value.length);
+        }
+      });
+    }
+
+    path = path.replace(/\//g, " ").trim().replace(/\s/g, ".");
+    return path;
+  }
+
   return {
     defaultFilter,
     setStatsDKey,
     statsd,
+    cleanUpParams,
   };
 }
 

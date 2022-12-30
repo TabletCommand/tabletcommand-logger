@@ -4,6 +4,7 @@ export default function metrics(filter?: FilterFunction): {
     defaultFilter: (pathIn: string) => string;
     setStatsDKey: (req: Request, hostname: string, env: string) => void;
     statsd: () => (req: Request, res: Response, next: NextFunction) => void;
+    cleanUpParams: (req: Partial<Request>) => string;
 };
 export declare type MetricsModule = ReturnType<typeof metrics>;
 export {};
