@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.cleanUpParams = void 0;
 const os_1 = __importDefault(require("os"));
 const url_1 = require("url");
 const lodash_1 = __importDefault(require("lodash"));
@@ -34,7 +35,10 @@ function metrics(filter) {
     function setStatsDKey(req, hostname, env) {
         let method = req.method || "unknown_method";
         method = method.toLowerCase();
-        const path = cleanUpParams(req);
+        const defaultBase = "http://localhost";
+        const urlItem = new url_1.URL(req.url, defaultBase);
+        let path = urlItem.pathname.toLowerCase();
+        path = path.replace(/\//g, " ").trim().replace(/\s/g, ".");
         let filterFunc = defaultFilter;
         if (lodash_1.default.isFunction(filter)) {
             filterFunc = filter;
@@ -58,29 +62,30 @@ function metrics(filter) {
             return next();
         };
     }
-    function cleanUpParams(req) {
-        var _a, _b;
-        const defaultBase = "http://localhost";
-        const urlItem = new url_1.URL((_a = req.url) !== null && _a !== void 0 ? _a : "/", defaultBase);
-        let path = urlItem.pathname.toLowerCase();
-        // Attempt to replace :params values with their keys
-        if (lodash_1.default.isObject(req.params)) {
-            lodash_1.default.forEach((_b = req.params) !== null && _b !== void 0 ? _b : {}, (value, key) => {
-                const foundIndex = path.lastIndexOf(value);
-                if (foundIndex >= 0) {
-                    path = path.substring(0, foundIndex) + key + path.substring(foundIndex + value.length);
-                }
-            });
-        }
-        path = path.replace(/\//g, " ").trim().replace(/\s/g, ".");
-        return path;
-    }
     return {
         defaultFilter,
         setStatsDKey,
         statsd,
-        cleanUpParams,
     };
 }
 exports.default = metrics;
+function cleanUpParams(req) {
+    var _a;
+    if (!lodash_1.default.isString(req.statsdKey)) {
+        return;
+    }
+    let path = req.statsdKey.toLowerCase();
+    // Attempt to replace :params values with their keys
+    if (lodash_1.default.isObject(req.params)) {
+        lodash_1.default.forEach((_a = req.params) !== null && _a !== void 0 ? _a : {}, (value, key) => {
+            const foundIndex = path.lastIndexOf(value.toLowerCase());
+            if (foundIndex >= 0) {
+                path = path.substring(0, foundIndex) + key + path.substring(foundIndex + value.toLowerCase().length);
+            }
+        });
+    }
+    path = path.replace(/\//g, " ").trim().replace(/\s/g, ".");
+    req.statsdKey = path.toLowerCase();
+}
+exports.cleanUpParams = cleanUpParams;
 //# sourceMappingURL=metrics.js.map

@@ -1,6 +1,7 @@
 import { assert } from "chai";
 import { Request } from "express";
 import MetricsModule from "../middleware/metrics";
+import { cleanUpParams } from "../middleware/metrics";
 const metrics = MetricsModule();
 
 describe("Metrics Middleware", function() {
@@ -44,18 +45,18 @@ describe("Metrics Middleware", function() {
       assert.equal(req.statsdKey, expectedStatsdKey);
     });
   });
+});
 
-  context("cleanUpParams", () => {
-    it("cleans up params", () => {
-      const req: Partial<Request> = {
-        url: "/api/a1/admin/department/abcd",
-        params: {
-          departmentId: "abcd",
-          x123: "admin",
-        }
-      };
-      const path = metrics.cleanUpParams(req);
-      assert.strictEqual(path, "api.a1.x123.department.departmentId");
-    });
+describe("cleanUpParams", () => {
+  it("cleans up params", () => {
+    const req: Partial<Request> = {
+      statsdKey: "api.a1.admin.department.abcd",
+      params: {
+        departmentId: "abcd",
+        x123: "admin",
+      }
+    };
+    cleanUpParams(req);
+    assert.strictEqual(req.statsdKey, "api.a1.x123.department.departmentid"); // cspell: words departmentid
   });
 });

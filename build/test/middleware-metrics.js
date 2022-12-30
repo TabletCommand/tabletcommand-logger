@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const chai_1 = require("chai");
 const metrics_1 = __importDefault(require("../middleware/metrics"));
+const metrics_2 = require("../middleware/metrics");
 const metrics = (0, metrics_1.default)();
 describe("Metrics Middleware", function () {
     context("Default Filter", () => {
@@ -43,18 +44,18 @@ describe("Metrics Middleware", function () {
             chai_1.assert.equal(req.statsdKey, expectedStatsdKey);
         });
     });
-    context("cleanUpParams", () => {
-        it("cleans up params", () => {
-            const req = {
-                url: "/api/a1/admin/department/abcd",
-                params: {
-                    departmentId: "abcd",
-                    x123: "admin",
-                }
-            };
-            const path = metrics.cleanUpParams(req);
-            chai_1.assert.strictEqual(path, "api.a1.x123.department.departmentId");
-        });
+});
+describe("cleanUpParams", () => {
+    it("cleans up params", () => {
+        const req = {
+            statsdKey: "api.a1.admin.department.abcd",
+            params: {
+                departmentId: "abcd",
+                x123: "admin",
+            }
+        };
+        (0, metrics_2.cleanUpParams)(req);
+        chai_1.assert.strictEqual(req.statsdKey, "api.a1.x123.department.departmentid"); // cspell: words departmentid
     });
 });
 //# sourceMappingURL=middleware-metrics.js.map

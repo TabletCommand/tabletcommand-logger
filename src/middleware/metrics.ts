@@ -37,12 +37,15 @@ export default function metrics(filter?: FilterFunction) {
   function setStatsDKey(req: Request, hostname: string, env: string) {
     let method = req.method || "unknown_method";
     method = method.toLowerCase();
-    const path = cleanUpParams(req);
+    const defaultBase = "http://localhost";
+    const urlItem = new URL(req.url, defaultBase);
+    let path = urlItem.pathname.toLowerCase();
+    path = path.replace(/\//g, " ").trim().replace(/\s/g, ".");
     let filterFunc = defaultFilter;
     if (_.isFunction(filter)) {
       filterFunc = filter;
     }
-    const filteredPath = filterFunc(path);
+    const filteredPath: string = filterFunc(path);
     req.statsdKey = [
       hostname,
       env,
@@ -63,31 +66,32 @@ export default function metrics(filter?: FilterFunction) {
     };
   }
 
-  function cleanUpParams(req: Partial<Request>): string {
-    const defaultBase = "http://localhost";
-    const urlItem = new URL(req.url ?? "/", defaultBase);
-    let path = urlItem.pathname.toLowerCase();
-
-    // Attempt to replace :params values with their keys
-    if (_.isObject(req.params)) {
-      _.forEach(req.params ?? {}, (value, key) => {
-        const foundIndex = path.lastIndexOf(value);
-        if (foundIndex >= 0) {
-          path = path.substring(0, foundIndex) + key + path.substring(foundIndex + value.length);
-        }
-      });
-    }
-
-    path = path.replace(/\//g, " ").trim().replace(/\s/g, ".");
-    return path;
-  }
-
   return {
     defaultFilter,
     setStatsDKey,
     statsd,
-    cleanUpParams,
   };
+}
+
+export function cleanUpParams(req: Partial<Request>) {
+  if (!_.isString(req.statsdKey)) {
+    return;
+  }
+
+  let path = req.statsdKey.toLowerCase();
+
+  // Attempt to replace :params values with their keys
+  if (_.isObject(req.params)) {
+    _.forEach(req.params ?? {}, (value, key) => {
+      const foundIndex = path.lastIndexOf(value.toLowerCase());
+      if (foundIndex >= 0) {
+        path = path.substring(0, foundIndex) + key + path.substring(foundIndex + value.toLowerCase().length);
+      }
+    });
+  }
+
+  path = path.replace(/\//g, " ").trim().replace(/\s/g, ".");
+  req.statsdKey = path.toLowerCase();
 }
 
 export type MetricsModule = ReturnType<typeof metrics>;
