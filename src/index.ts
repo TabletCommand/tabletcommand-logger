@@ -1,7 +1,7 @@
 
 import _logger from "./bunyan-logger";
 import _loggerMiddleware from "./middleware/logger";
-import _metricsMiddleware from "./middleware/metrics";
+import _metricsMiddleware, { cleanUpParams, } from "./middleware/metrics";
 import _statusLogger from "./middleware/status-logger";
 
 export const logger = _logger;
@@ -13,5 +13,6 @@ export default {
   logger,
   loggerMiddleware,
   metricsMiddleware,
+  metricsCleanUpParams: cleanUpParams,
   statusLogger,
 };
