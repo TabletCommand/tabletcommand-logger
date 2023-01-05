@@ -59,4 +59,16 @@ describe("cleanUpParams", () => {
     cleanUpParams(req);
     assert.strictEqual(req.statsdKey, "api.a1.x123.department.departmentid"); // cspell: words departmentid
   });
+
+  it("cleans up params when values are undefined", () => {
+    const req: Partial<Request> = {
+      statsdKey: "api.a1.admin.department",
+      params: {
+        departmentId: undefined as never, // Force value to undefined, when setting param as optional ":departmentId?"
+        x123: "admin",
+      }
+    };
+    cleanUpParams(req);
+    assert.strictEqual(req.statsdKey, "api.a1.x123.department");
+  });
 });

@@ -57,5 +57,16 @@ describe("cleanUpParams", () => {
         (0, metrics_2.cleanUpParams)(req);
         chai_1.assert.strictEqual(req.statsdKey, "api.a1.x123.department.departmentid"); // cspell: words departmentid
     });
+    it("cleans up params when values are undefined", () => {
+        const req = {
+            statsdKey: "api.a1.admin.department",
+            params: {
+                departmentId: undefined,
+                x123: "admin",
+            }
+        };
+        (0, metrics_2.cleanUpParams)(req);
+        chai_1.assert.strictEqual(req.statsdKey, "api.a1.x123.department");
+    });
 });
 //# sourceMappingURL=middleware-metrics.js.map

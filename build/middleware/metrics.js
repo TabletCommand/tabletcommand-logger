@@ -78,6 +78,9 @@ function cleanUpParams(req) {
     // Attempt to replace :params values with their keys
     if (lodash_1.default.isObject(req.params)) {
         lodash_1.default.forEach((_a = req.params) !== null && _a !== void 0 ? _a : {}, (value, key) => {
+            if (!lodash_1.default.isString(value) || !lodash_1.default.isString(key)) {
+                return;
+            }
             const foundIndex = path.lastIndexOf(value.toLowerCase());
             if (foundIndex >= 0) {
                 path = path.substring(0, foundIndex) + key + path.substring(foundIndex + value.toLowerCase().length);

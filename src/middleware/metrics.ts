@@ -83,6 +83,9 @@ export function cleanUpParams(req: Partial<Request>) {
   // Attempt to replace :params values with their keys
   if (_.isObject(req.params)) {
     _.forEach(req.params ?? {}, (value, key) => {
+      if (!_.isString(value) || !_.isString(key)) {
+        return;
+      }
       const foundIndex = path.lastIndexOf(value.toLowerCase());
       if (foundIndex >= 0) {
         path = path.substring(0, foundIndex) + key + path.substring(foundIndex + value.toLowerCase().length);
