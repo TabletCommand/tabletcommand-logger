@@ -39,7 +39,7 @@ export default function statusLogger(logger?: bunyan) {
     const oldJSON = res.json.bind(res);
 
     // Used when using res.json(body);
-    res.json = function newJson(body: unknown | string): Response {
+    res.json = function newJson(body: unknown): Response {
       if (_.isString(body)) {
         try {
           res.bodyCopy = JSON.parse(body);

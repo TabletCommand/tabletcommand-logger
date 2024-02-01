@@ -14,6 +14,9 @@ const monitorRequest = (0, express_statsd_1.default)();
 // See https://github.com/uber/express-statsd
 function metrics(filter) {
     const debug = (0, debug_1.default)("tabletcommand-logger:middleware/metrics");
+    const allowedMethods = [
+        "GET", "POST",
+    ];
     function defaultFilter(pathIn) {
         const uuidRegex = /[-a-f\d]{36}/i;
         const mongoIdRegex = /[a-f\d]{24}/i;
@@ -53,8 +56,15 @@ function metrics(filter) {
         ].join(".");
         debug(`req.statsdKey: ${req.statsdKey}`);
     }
+    function shouldProcessRequest(req) {
+        const method = (req.method || "unknown_method").toUpperCase();
+        return allowedMethods.indexOf(method) >= 0;
+    }
     function statsd() {
         return function statsdFunc(req, res, next) {
+            if (!shouldProcessRequest(req)) {
+                return next();
+            }
             const hostname = process.env.NODE_STATSD_PREFIX || os_1.default.hostname();
             const env = process.env.NODE_ENV || "production";
             setStatsDKey(req, hostname, env);
