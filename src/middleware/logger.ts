@@ -1,11 +1,11 @@
-import bunyan from "bunyan";
+import { Logger } from "winston";
 import {
   NextFunction,
   Request,
   Response,
 } from "express";
 
-export default function loggerMiddleware(logger?: bunyan) {
+export default function loggerMiddleware(logger?: Logger) {
   return function accessLogMiddleware(req: Request, res: Response, next: NextFunction) {
     // This doesn't fire the log immediately, but waits until the response is finished
     // This means we have a chance of logging the response code
@@ -30,7 +30,7 @@ export default function loggerMiddleware(logger?: bunyan) {
           originalUrl: req.originalUrl
         },
         status: res.statusCode ? res.statusCode : 0
-      }, "access_log");
+      });
     });
     return next();
   };

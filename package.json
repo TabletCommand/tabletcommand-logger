@@ -1,6 +1,6 @@
 {
   "name": "tabletcommand-logger",
-  "version": "2.4.0",
+  "version": "3.0.0",
   "description": "Tablet Command Logging Configuration",
   "scripts": {
     "build": "gulp ts",
@@ -16,21 +16,23 @@
   "main": "build/index.js",
   "types": "definitions/index.d.ts",
   "dependencies": {
-    "bunyan": "^1.8.15",
+    "datadog-winston": "^1.6.0",
     "debug": "^4.3.4",
     "express-statsd": "^0.3.0",
-    "lodash": "^4.17.21"
+    "lodash": "^4.17.21",
+    "winston": "^3.13.0",
+    "winston-daily-rotate-file": "^5.0.0"
   },
   "devDependencies": {
-    "@types/bunyan": "^1.8.11",
-    "@types/chai": "^4.3.11",
+    "@types/chai": "^4.3.14",
+    "@types/datadog-winston": "^1.0.7",
     "@types/debug": "4.1.12",
     "@types/express": "^4.17.21",
-    "@types/express-serve-static-core": "^4.17.42",
+    "@types/express-serve-static-core": "^4.19.0",
     "@types/gulp-copy": "0.0.7",
-    "@types/lodash": "^4.14.202",
+    "@types/lodash": "^4.17.0",
     "@types/mocha": "^10.0.6",
-    "@types/node": "^20.11.14",
+    "@types/node": "^20.12.7",
     "@typescript-eslint/eslint-plugin": "^6.20.0",
     "@typescript-eslint/parser": "^6.20.0",
     "chai": "^4.3.10",
@@ -49,7 +51,7 @@
     "gulp-eslint": "^6.0.0",
     "gulp-mocha": "^8.0.0",
     "gulp-shell": "^0.8.0",
-    "mocha": "^10.2.0",
+    "mocha": "^10.4.0",
     "typescript": "~4.7.4"
   }
 }

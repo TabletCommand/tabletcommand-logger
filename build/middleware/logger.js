@@ -25,7 +25,7 @@ function loggerMiddleware(logger) {
                     originalUrl: req.originalUrl
                 },
                 status: res.statusCode ? res.statusCode : 0
-            }, "access_log");
+            });
         });
         return next();
     };

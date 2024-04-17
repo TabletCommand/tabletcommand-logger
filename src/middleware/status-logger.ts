@@ -1,4 +1,5 @@
-import bunyan from "bunyan";
+import { Logger } from "winston";
+
 import {
   NextFunction,
   Request,
@@ -27,7 +28,7 @@ function requestDuration(endTime: Date, startTime?: Date): number {
   return endTime.valueOf() - startTime.valueOf();
 }
 
-export default function statusLogger(logger?: bunyan) {
+export default function statusLogger(logger?: Logger) {
   return function requestLogger(req: Request, res: Response, next: NextFunction) {
     if (!_.isObject(req._startTime)) {
       req._startTime = new Date();

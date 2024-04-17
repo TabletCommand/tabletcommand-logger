@@ -27,11 +27,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.statusLogger = exports.metricsMiddleware = exports.metricsCleanUpParams = exports.loggerMiddleware = exports.logger = void 0;
-const bunyan_logger_1 = __importDefault(require("./bunyan-logger"));
+const winston_logger_1 = __importDefault(require("./winston-logger"));
 const logger_1 = __importDefault(require("./middleware/logger"));
 const metrics_1 = __importStar(require("./middleware/metrics"));
 const status_logger_1 = __importDefault(require("./middleware/status-logger"));
-exports.logger = bunyan_logger_1.default;
+exports.logger = winston_logger_1.default;
 exports.loggerMiddleware = logger_1.default;
 exports.metricsCleanUpParams = metrics_1.cleanUpParams;
 exports.metricsMiddleware = metrics_1.default;
