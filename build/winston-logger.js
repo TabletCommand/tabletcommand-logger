@@ -30,7 +30,7 @@ function logger(config) {
     }
     if (config.logToDatadog) {
         const dd = new datadog_winston_1.default({
-            apiKey: config.ddApiKey,
+            apiKey: config.datadogApiKey,
             service: config.name,
         });
         trs.push(dd);
@@ -40,7 +40,7 @@ function logger(config) {
         format: winston_1.format.combine(winston_1.format.timestamp({
             format: "isoDateTime"
         }), winston_1.format.errors({ stack: true }), winston_1.format.splat(), winston_1.format.json()),
-        defaultMeta: { service: name },
+        defaultMeta: { service: config.name },
         transports: trs,
         exitOnError: false,
     });

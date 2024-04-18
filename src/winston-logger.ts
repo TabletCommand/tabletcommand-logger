@@ -7,11 +7,11 @@ export type LoggerConfig = {
   name: string, // name of the logger
   filename: string, // file where data is written (rotated)
   dirname: string, // folder where data is saved
-  ddApiKey: string,
+  logToConsole: boolean,
+  logToFile: boolean,
 
-  logToConsole?: boolean,
-  logToDatadog?: boolean,
-  logToFile?: boolean,
+  logToDatadog: boolean,
+  datadogApiKey: string,
 };
 
 export default function logger(config: LoggerConfig): Logger | null {
@@ -42,7 +42,7 @@ export default function logger(config: LoggerConfig): Logger | null {
 
   if (config.logToDatadog) {
     const dd = new DataDogTransport({
-      apiKey: config.ddApiKey,
+      apiKey: config.datadogApiKey,
       service: config.name,
     });
     trs.push(dd);
@@ -58,7 +58,7 @@ export default function logger(config: LoggerConfig): Logger | null {
       format.splat(),
       format.json()
     ),
-    defaultMeta: { service: name },
+    defaultMeta: { service: config.name },
     transports: trs,
     exitOnError: false,
   });
