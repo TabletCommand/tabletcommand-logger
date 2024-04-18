@@ -37,9 +37,9 @@ function logger(config) {
     }
     const loggerClient = (0, winston_1.createLogger)({
         level: "info",
-        format: winston_1.format.combine(winston_1.format.timestamp({
-            format: "isoDateTime"
-        }), winston_1.format.errors({ stack: true }), winston_1.format.splat(), winston_1.format.json()),
+        format: winston_1.format.combine(
+        // If you pass in a TimestampOptions, it will convert the date from UTC to local TZ
+        winston_1.format.timestamp(), winston_1.format.errors({ stack: true }), winston_1.format.splat(), winston_1.format.json()),
         defaultMeta: { service: config.name },
         transports: trs,
         exitOnError: false,

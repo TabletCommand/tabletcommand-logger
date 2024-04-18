@@ -51,9 +51,8 @@ export default function logger(config: LoggerConfig): Logger | null {
   const loggerClient = createLogger({
     level: "info",
     format: format.combine(
-      format.timestamp({
-        format: "isoDateTime"
-      }),
+      // If you pass in a TimestampOptions, it will convert the date from UTC to local TZ
+      format.timestamp(),
       format.errors({ stack: true }),
       format.splat(),
       format.json()
