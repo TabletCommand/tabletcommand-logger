@@ -7,8 +7,17 @@ import {
 } from "express";
 import _ from "lodash";
 
+const allowedMethods = ["POST"];
+
 function shouldIgnore(req: Request, res: Response): boolean {
   if (_.isObject(res) && res.statusCode === 304) {
+    return true;
+  }
+
+  // Log only if method is in the allowed array
+  const m = (req?.method ?? "unknown").toUpperCase();
+  const shouldLog = allowedMethods.indexOf(m) >= 0;
+  if (!shouldLog) {
     return true;
   }
 

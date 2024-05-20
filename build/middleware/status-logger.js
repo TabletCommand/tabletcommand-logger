@@ -4,8 +4,16 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const lodash_1 = __importDefault(require("lodash"));
+const allowedMethods = ["POST"];
 function shouldIgnore(req, res) {
+    var _a;
     if (lodash_1.default.isObject(res) && res.statusCode === 304) {
+        return true;
+    }
+    // Log only if method is in the allowed array
+    const m = ((_a = req === null || req === void 0 ? void 0 : req.method) !== null && _a !== void 0 ? _a : "unknown").toUpperCase();
+    const shouldLog = allowedMethods.indexOf(m) >= 0;
+    if (!shouldLog) {
         return true;
     }
     const userAgent = lodash_1.default.get(req, "headers.user-agent");
