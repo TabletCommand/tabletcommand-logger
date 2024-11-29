@@ -12,6 +12,7 @@ export type LoggerConfig = {
 
   logToDatadog: boolean,
   datadogApiKey: string,
+  extraMeta?: Record<string, unknown>,
 };
 
 export default function logger(config: LoggerConfig): Logger | null {
@@ -57,7 +58,10 @@ export default function logger(config: LoggerConfig): Logger | null {
       format.splat(),
       format.json()
     ),
-    defaultMeta: { service: config.name },
+    defaultMeta: {
+      ...config.extraMeta,
+      service: config.name,
+    },
     transports: trs,
     exitOnError: false,
   });

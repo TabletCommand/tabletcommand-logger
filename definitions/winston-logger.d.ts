@@ -1,5 +1,5 @@
 import { Logger } from "winston";
-export declare type LoggerConfig = {
+export type LoggerConfig = {
     name: string;
     filename: string;
     dirname: string;
@@ -7,7 +7,8 @@ export declare type LoggerConfig = {
     logToFile: boolean;
     logToDatadog: boolean;
     datadogApiKey: string;
+    extraMeta?: Record<string, unknown>;
 };
 export default function logger(config: LoggerConfig): Logger | null;
-export declare type LoggerModule = ReturnType<typeof logger>;
+export type LoggerModule = ReturnType<typeof logger>;
 //# sourceMappingURL=winston-logger.d.ts.map

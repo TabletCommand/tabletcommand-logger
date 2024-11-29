@@ -40,7 +40,10 @@ function logger(config) {
         format: winston_1.format.combine(
         // If you pass in a TimestampOptions, it will convert the date from UTC to local TZ
         winston_1.format.timestamp(), winston_1.format.errors({ stack: true }), winston_1.format.splat(), winston_1.format.json()),
-        defaultMeta: { service: config.name },
+        defaultMeta: {
+            ...config.extraMeta,
+            service: config.name,
+        },
         transports: trs,
         exitOnError: false,
     });
