@@ -5,6 +5,14 @@ import {
   Response,
 } from "express";
 
+export function redactOriginalURL(maybeURL?: string): string {
+  if (!maybeURL) {
+    return "";
+  }
+
+  return maybeURL.replace(/apikey=.*?(&|$)/, "apikey=xxx&");
+}
+
 export default function loggerMiddleware(logger?: Logger) {
   return function accessLogMiddleware(req: Request, res: Response, next: NextFunction) {
     // This doesn't fire the log immediately, but waits until the response is finished
@@ -17,7 +25,7 @@ export default function loggerMiddleware(logger?: Logger) {
       logger.info({
         remoteAddress: req.ip,
         method: req.method,
-        url: req.originalUrl,
+        url: redactOriginalURL(req.originalUrl),
         protocol: req.protocol,
         hostname: req.hostname,
         httpVersion: `${req.httpVersionMajor}.${req.httpVersionMinor}`,

@@ -1,5 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.redactOriginalURL = void 0;
+function redactOriginalURL(maybeURL) {
+    if (!maybeURL) {
+        return "";
+    }
+    return maybeURL.replace(/apikey=.*?(&|$)/, "apikey=xxx&");
+}
+exports.redactOriginalURL = redactOriginalURL;
 function loggerMiddleware(logger) {
     return function accessLogMiddleware(req, res, next) {
         // This doesn't fire the log immediately, but waits until the response is finished
@@ -12,7 +20,7 @@ function loggerMiddleware(logger) {
             logger.info({
                 remoteAddress: req.ip,
                 method: req.method,
-                url: req.originalUrl,
+                url: redactOriginalURL(req.originalUrl),
                 protocol: req.protocol,
                 hostname: req.hostname,
                 httpVersion: `${req.httpVersionMajor}.${req.httpVersionMinor}`,

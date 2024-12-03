@@ -5,11 +5,14 @@ import {
   Request,
   Response,
 } from "express";
+import { Query } from "express-serve-static-core";
 import _ from "lodash";
+
+import { redactOriginalURL } from "./logger";
 
 const allowedMethods = ["POST"];
 
-function shouldIgnore(req: Request, res: Response): boolean {
+export function shouldIgnore(req: Request, res: Response): boolean {
   if (_.isObject(res) && res.statusCode === 304) {
     return true;
   }
@@ -29,12 +32,20 @@ function shouldIgnore(req: Request, res: Response): boolean {
   return false;
 }
 
-function requestDuration(endTime: Date, startTime?: Date): number {
+export function requestDuration(endTime: Date, startTime?: Date): number {
   if (!_.isObject(startTime) || !_.isDate(startTime)) {
     return 0;
   }
 
   return endTime.valueOf() - startTime.valueOf();
+}
+
+export function redactQuery(q: Query) {
+  if (_.isString(q.apikey)) {
+    q.apikey = q.apikey.substring(0, 7);
+  }
+
+  return q;
 }
 
 export default function statusLogger(logger?: Logger) {
@@ -82,6 +93,8 @@ export default function statusLogger(logger?: Logger) {
         "path",
         "query",
       ]);
+      cleanReq.originalUrl = redactOriginalURL(req.originalUrl);
+      cleanReq.query = redactQuery(req.query);
 
       const cleanRes = _.pick(res, [
         "bodyCopy",
