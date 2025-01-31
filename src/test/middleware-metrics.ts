@@ -1,3 +1,4 @@
+import "mocha";
 import { assert } from "chai";
 import { Request } from "express";
 import MetricsModule from "../middleware/metrics";

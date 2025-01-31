@@ -1,3 +1,4 @@
+import _ from "lodash";
 import { Logger } from "winston";
 import {
   NextFunction,
@@ -10,6 +11,19 @@ export function redactOriginalURL(maybeURL?: string): string {
     return "";
   }
 
+  try {
+    // Attempt to keep first 7 chars of the api key
+    const href = new URL(maybeURL);
+    const prevApiKey = href.searchParams.get("apikey");
+    if (prevApiKey && _.isString(prevApiKey)) {
+      href.searchParams.set("apikey", prevApiKey.substring(0, 7));
+      return href.toString();
+    }
+  } catch (_error) {
+    //
+  }
+
+  // Fallback
   return maybeURL.replace(/apikey=.*?(&|$)/, "apikey=xxx&");
 }
 

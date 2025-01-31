@@ -1,10 +1,27 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.redactOriginalURL = void 0;
+const lodash_1 = __importDefault(require("lodash"));
 function redactOriginalURL(maybeURL) {
     if (!maybeURL) {
         return "";
     }
+    try {
+        // Attempt to keep first 7 chars of the api key
+        const href = new URL(maybeURL);
+        const prevApiKey = href.searchParams.get("apikey");
+        if (prevApiKey && lodash_1.default.isString(prevApiKey)) {
+            href.searchParams.set("apikey", prevApiKey.substring(0, 7));
+            return href.toString();
+        }
+    }
+    catch (_error) {
+        //
+    }
+    // Fallback
     return maybeURL.replace(/apikey=.*?(&|$)/, "apikey=xxx&");
 }
 exports.redactOriginalURL = redactOriginalURL;

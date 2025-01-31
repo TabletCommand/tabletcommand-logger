@@ -1,6 +1,6 @@
 {
   "name": "tabletcommand-logger",
-  "version": "3.2.0",
+  "version": "3.2.1",
   "description": "Tablet Command Logging Configuration",
   "scripts": {
     "build": "gulp ts",
@@ -52,6 +52,7 @@
     "gulp-mocha": "^8.0.0",
     "gulp-shell": "^0.8.0",
     "mocha": "^10.8.2",
+    "ts-node": "^10.9.2",
     "typescript": "~4.9.5"
   }
 }
