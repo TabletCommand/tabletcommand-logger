@@ -1,11 +1,9 @@
 const gulp = require("gulp");
-const shell = require("gulp-shell");
-const mocha = require("gulp-mocha");
-const del = require("del");
-const copy = require("gulp-copy");
+const exec = require("gulp-execa");
+const { deleteAsync } = require("del");
 
 gulp.task("clean", function() {
-  return del("build/**", {
+  return deleteAsync(["build/**", "!build",], {
     force: true
   });
 });
@@ -13,27 +11,13 @@ gulp.task("clean", function() {
 gulp.task("ts",
   gulp.series(
     "clean",
-    gulp.parallel(shell.task("tsc -p ./src"))
+    exec.task("tsc -p src")
   ));
 
-gulp.task("tslint", gulp.series(shell.task("eslint ./src")));
-gulp.task("lint", gulp.series("tslint"));
+gulp.task("lint", exec.task("eslint src"));
 
-gulp.task("test", gulp.series(gulp.parallel("tslint", "ts"), function runTests() {
-  const tests = [
-    "build/test/**/*.js"
-  ];
-  const srcOpts = {
-    read: false
-  };
-  return gulp.src(tests, srcOpts)
-    .pipe(mocha({
-      reporter: "list"
-    }));
-}));
+gulp.task("test", exec.task("mocha -r ts-node/register --reporter list --extension js,ts --recursive build/test"));
 
 gulp.task("build", gulp.series("ts"));
 
-gulp.task("watch", gulp.series("clean", shell.task("tsc -p ./src --watch")));
-
-gulp.task("default", gulp.series("test"));
+gulp.task("default", gulp.series("ts", "lint", "test"));

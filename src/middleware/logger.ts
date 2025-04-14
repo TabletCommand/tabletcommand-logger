@@ -19,7 +19,7 @@ export function redactOriginalURL(maybeURL?: string): string {
       href.searchParams.set("apikey", prevApiKey.substring(0, 7));
       return href.toString();
     }
-  } catch (_error) {
+  } catch {
     //
   }
 

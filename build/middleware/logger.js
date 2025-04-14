@@ -18,7 +18,7 @@ function redactOriginalURL(maybeURL) {
             return href.toString();
         }
     }
-    catch (_error) {
+    catch (_a) {
         //
     }
     // Fallback

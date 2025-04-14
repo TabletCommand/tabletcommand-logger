@@ -64,7 +64,7 @@ export default function statusLogger(logger?: Logger) {
       if (_.isString(body)) {
         try {
           res.bodyCopy = JSON.parse(body);
-        } catch (e) {
+        } catch {
           res.bodyCopy = body;
         }
       } else {

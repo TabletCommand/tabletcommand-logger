@@ -53,7 +53,7 @@ function statusLogger(logger) {
                 try {
                     res.bodyCopy = JSON.parse(body);
                 }
-                catch (e) {
+                catch (_a) {
                     res.bodyCopy = body;
                 }
             }

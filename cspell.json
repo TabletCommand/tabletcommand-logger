@@ -1,17 +1,11 @@
 // cSpell Settings
 {
-  // Version of the setting file.  Always 0.1
+  "$schema": "https://raw.githubusercontent.com/streetsidesoftware/cspell/main/cspell.schema.json",
   "version": "0.2",
   // language - current active spelling language
   "language": "en-US",
   // words - list of words to be always considered correct
-  "words": [
-    "tabletcommand",
-    "backend",
-    "Ursache",
-    "bamse",
-    "apikey"
-  ],
+  "words": [],
   // flagWords - list of words to be always considered incorrect
   // This is useful for offensive words and common spelling errors.
   // For example "hte" should be "the"
@@ -19,10 +13,31 @@
     "hte"
   ],
   "ignoreWords": [],
-  "dictionaryDefinitions": [],
-  "dictionaries": [],
   "languageSettings": [{
     "languageId": "*",
     "dictionaries": []
-  }]
+  }],
+  "ignorePaths": [
+    "node_modules",
+    "src/**/*.svg",
+    "/project-words.txt"
+  ],
+  "dictionaryDefinitions": [
+    //
+    {
+      "name": "project-words",
+      "path": "./.cspell/project-words.txt",
+      "addWords": true
+    }
+  ],
+  "dictionaries": [
+    "project-words"
+  ],
+  "files": [
+    "gulpfile.js",
+    "package.json",
+    "README.md",
+    "test.sh",
+    "src/**"
+  ]
 }
