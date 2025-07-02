@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.default = logger;
 const winston_1 = require("winston");
 const winston_daily_rotate_file_1 = __importDefault(require("winston-daily-rotate-file"));
 const datadog_winston_1 = __importDefault(require("datadog-winston"));
@@ -49,5 +50,4 @@ function logger(config) {
     });
     return loggerClient;
 }
-exports.default = logger;
 //# sourceMappingURL=winston-logger.js.map

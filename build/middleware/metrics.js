@@ -3,7 +3,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.cleanUpParams = void 0;
+exports.default = metrics;
+exports.cleanUpParams = cleanUpParams;
 const os_1 = __importDefault(require("os"));
 const url_1 = require("url");
 const lodash_1 = __importDefault(require("lodash"));
@@ -78,7 +79,6 @@ function metrics(filter) {
         statsd,
     };
 }
-exports.default = metrics;
 function cleanUpParams(req) {
     var _a;
     if (!lodash_1.default.isString(req.statsdKey)) {
@@ -100,5 +100,4 @@ function cleanUpParams(req) {
     path = path.replace(/\//g, " ").trim().replace(/\s/g, ".");
     req.statsdKey = path.toLowerCase();
 }
-exports.cleanUpParams = cleanUpParams;
 //# sourceMappingURL=metrics.js.map

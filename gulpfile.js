@@ -2,8 +2,11 @@ const gulp = require("gulp");
 const exec = require("gulp-execa");
 const { deleteAsync } = require("del");
 
-gulp.task("clean", function() {
-  return deleteAsync(["build/**", "!build",], {
+gulp.task("clean", function () {
+  return deleteAsync([
+    "build/**",
+    "definitions/**",
+  ], {
     force: true
   });
 });

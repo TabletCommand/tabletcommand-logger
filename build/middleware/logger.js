@@ -3,7 +3,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.redactOriginalURL = void 0;
+exports.redactOriginalURL = redactOriginalURL;
+exports.default = loggerMiddleware;
 const lodash_1 = __importDefault(require("lodash"));
 function redactOriginalURL(maybeURL) {
     if (!maybeURL) {
@@ -24,7 +25,6 @@ function redactOriginalURL(maybeURL) {
     // Fallback
     return maybeURL.replace(/apikey=.*?(&|$)/, "apikey=xxx&");
 }
-exports.redactOriginalURL = redactOriginalURL;
 function loggerMiddleware(logger) {
     return function accessLogMiddleware(req, res, next) {
         // This doesn't fire the log immediately, but waits until the response is finished
@@ -55,5 +55,4 @@ function loggerMiddleware(logger) {
         return next();
     };
 }
-exports.default = loggerMiddleware;
 //# sourceMappingURL=logger.js.map

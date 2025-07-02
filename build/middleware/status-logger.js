@@ -3,7 +3,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.redactQuery = exports.requestDuration = exports.shouldIgnore = void 0;
+exports.shouldIgnore = shouldIgnore;
+exports.requestDuration = requestDuration;
+exports.redactQuery = redactQuery;
+exports.default = statusLogger;
 const lodash_1 = __importDefault(require("lodash"));
 const logger_1 = require("./logger");
 const allowedMethods = ["POST"];
@@ -24,21 +27,18 @@ function shouldIgnore(req, res) {
     }
     return false;
 }
-exports.shouldIgnore = shouldIgnore;
 function requestDuration(endTime, startTime) {
     if (!lodash_1.default.isObject(startTime) || !lodash_1.default.isDate(startTime)) {
         return 0;
     }
     return endTime.valueOf() - startTime.valueOf();
 }
-exports.requestDuration = requestDuration;
 function redactQuery(q) {
     if (lodash_1.default.isString(q.apikey)) {
         q.apikey = q.apikey.substring(0, 7);
     }
     return q;
 }
-exports.redactQuery = redactQuery;
 function statusLogger(logger) {
     return function requestLogger(req, res, next) {
         if (!lodash_1.default.isObject(req._startTime)) {
@@ -97,5 +97,4 @@ function statusLogger(logger) {
         return next();
     };
 }
-exports.default = statusLogger;
 //# sourceMappingURL=status-logger.js.map

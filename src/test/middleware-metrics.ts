@@ -1,8 +1,7 @@
 import "mocha";
 import { assert } from "chai";
 import { Request } from "express";
-import MetricsModule from "../middleware/metrics";
-import { cleanUpParams } from "../middleware/metrics";
+import MetricsModule, { cleanUpParams } from "../middleware/metrics";
 const metrics = MetricsModule();
 
 describe("Metrics Middleware", function() {

@@ -1,4 +1,3 @@
-
 import _logger from "./winston-logger";
 import _loggerMiddleware from "./middleware/logger";
 import _metricsMiddleware, { cleanUpParams, } from "./middleware/metrics";

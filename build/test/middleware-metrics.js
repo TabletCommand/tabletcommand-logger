@@ -1,12 +1,41 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 require("mocha");
 const chai_1 = require("chai");
-const metrics_1 = __importDefault(require("../middleware/metrics"));
-const metrics_2 = require("../middleware/metrics");
+const metrics_1 = __importStar(require("../middleware/metrics"));
 const metrics = (0, metrics_1.default)();
 describe("Metrics Middleware", function () {
     context("Default Filter", () => {
@@ -55,18 +84,18 @@ describe("cleanUpParams", () => {
                 x123: "admin",
             }
         };
-        (0, metrics_2.cleanUpParams)(req);
+        (0, metrics_1.cleanUpParams)(req);
         chai_1.assert.strictEqual(req.statsdKey, "api.a1.x123.department.departmentid"); // cspell: words departmentid
     });
     it("cleans up params when values are undefined", () => {
         const req = {
             statsdKey: "api.a1.admin.department",
             params: {
-                departmentId: undefined,
+                departmentId: undefined, // Force value to undefined, when setting param as optional ":departmentId?"
                 x123: "admin",
             }
         };
-        (0, metrics_2.cleanUpParams)(req);
+        (0, metrics_1.cleanUpParams)(req);
         chai_1.assert.strictEqual(req.statsdKey, "api.a1.x123.department");
     });
 });

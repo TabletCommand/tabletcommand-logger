@@ -1,4 +1,3 @@
-/// <reference types="qs" />
 import { Logger } from "winston";
 import { NextFunction, Request, Response } from "express";
 import { Query } from "express-serve-static-core";
