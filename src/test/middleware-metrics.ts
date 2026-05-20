@@ -1,7 +1,8 @@
-import "mocha";
 import { assert } from "chai";
+import { describe, it, describe as context } from "node:test";
 import { Request } from "express";
 import MetricsModule, { cleanUpParams } from "../middleware/metrics";
+
 const metrics = MetricsModule();
 
 describe("Metrics Middleware", function() {

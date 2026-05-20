@@ -33,35 +33,35 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-require("mocha");
 const chai_1 = require("chai");
+const node_test_1 = require("node:test");
 const metrics_1 = __importStar(require("../middleware/metrics"));
 const metrics = (0, metrics_1.default)();
-describe("Metrics Middleware", function () {
-    context("Default Filter", () => {
-        it("removes uuid from end of paths", function () {
+(0, node_test_1.describe)("Metrics Middleware", function () {
+    (0, node_test_1.describe)("Default Filter", () => {
+        (0, node_test_1.it)("removes uuid from end of paths", function () {
             const path = "api.user.daafe605-feac-add0-ad0e-89023d48deab";
             const cleanPath = metrics.defaultFilter(path);
             chai_1.assert.equal(cleanPath, "api.user");
         });
-        it("removes uuid from middle of paths", function () {
+        (0, node_test_1.it)("removes uuid from middle of paths", function () {
             const path = "api.user.daafe605-feac-add0-ad0e-89023d48deab.info";
             const cleanPath = metrics.defaultFilter(path);
             chai_1.assert.equal(cleanPath, "api.user.info");
         });
-        it("removes mongo id from middle of paths", function () {
+        (0, node_test_1.it)("removes mongo id from middle of paths", function () {
             const path = "api.online.515a41a3e0387575cc939002.status";
             const cleanPath = metrics.defaultFilter(path);
             chai_1.assert.equal(cleanPath, "api.online.status");
         });
-        it("skips paths without uuid", function () {
+        (0, node_test_1.it)("skips paths without uuid", function () {
             const path = "api.user.profile";
             const cleanPath = metrics.defaultFilter(path);
             chai_1.assert.equal(cleanPath, "api.user.profile");
         });
     });
-    context("setStatsDKey", () => {
-        it("Parses URL without a set base hostname", () => {
+    (0, node_test_1.describe)("setStatsDKey", () => {
+        (0, node_test_1.it)("Parses URL without a set base hostname", () => {
             const sampleUrl = "/api/v2/cad-vehicle-status?apikey=some123key";
             const req = {
                 method: "POST",
@@ -75,8 +75,8 @@ describe("Metrics Middleware", function () {
         });
     });
 });
-describe("cleanUpParams", () => {
-    it("cleans up params", () => {
+(0, node_test_1.describe)("cleanUpParams", () => {
+    (0, node_test_1.it)("cleans up params", () => {
         const req = {
             statsdKey: "api.a1.admin.department.abcd",
             params: {
@@ -87,7 +87,7 @@ describe("cleanUpParams", () => {
         (0, metrics_1.cleanUpParams)(req);
         chai_1.assert.strictEqual(req.statsdKey, "api.a1.x123.department.departmentid"); // cspell: words departmentid
     });
-    it("cleans up params when values are undefined", () => {
+    (0, node_test_1.it)("cleans up params when values are undefined", () => {
         const req = {
             statsdKey: "api.a1.admin.department",
             params: {

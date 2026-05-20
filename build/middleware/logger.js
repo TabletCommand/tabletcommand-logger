@@ -19,7 +19,7 @@ function redactOriginalURL(maybeURL) {
             return href.toString();
         }
     }
-    catch (_a) {
+    catch {
         //
     }
     // Fallback

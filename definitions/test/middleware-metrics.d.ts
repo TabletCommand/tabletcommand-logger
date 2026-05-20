@@ -1,2 +1,2 @@
-import "mocha";
+export {};
 //# sourceMappingURL=middleware-metrics.d.ts.map

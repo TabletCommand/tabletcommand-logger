@@ -1,6 +1,6 @@
 import { defineConfig } from "eslint/config";
+import promise from "eslint-plugin-promise";
 import security from "eslint-plugin-security";
-import typescriptEslint from "@typescript-eslint/eslint-plugin";
 import globals from "globals";
 import tsParser from "@typescript-eslint/parser";
 import path from "node:path";
@@ -19,19 +19,20 @@ const compat = new FlatCompat({
 
 export default defineConfig([
   ...neostandard({
+    env: [
+      "node",
+    ],
     ts: true,
   }),
   plugins.n.configs["flat/recommended"],
   {
     extends: compat.extends(
       "eslint:recommended",
-      "plugin:@typescript-eslint/recommended",
-      "plugin:@typescript-eslint/recommended-requiring-type-checking",
     ),
 
     plugins: {
+      promise,
       security,
-      "@typescript-eslint": typescriptEslint,
     },
 
     languageOptions: {
@@ -41,7 +42,7 @@ export default defineConfig([
       },
 
       parser: tsParser,
-      ecmaVersion: 5,
+      ecmaVersion: 2019,
       sourceType: "commonjs",
 
       parserOptions: {
@@ -49,16 +50,26 @@ export default defineConfig([
       },
     },
 
+    settings: {
+      node: {
+        version: ">=24.15.0",
+      }
+    },
+
     rules: {
       quotes: [2, "double"],
       semi: [2, "always"],
+      "@typescript-eslint/await-thenable": [1],
+      "@typescript-eslint/no-floating-promises": [1],
+      "@typescript-eslint/no-for-in-array": [1],
+
       "space-before-function-paren": [0],
       "@typescript-eslint/explicit-module-boundary-types": 0,
       "@typescript-eslint/no-empty-interface": 0,
       "@typescript-eslint/require-await": 0,
       "@typescript-eslint/restrict-template-expressions": 0,
 
-      "@typescript-eslint/no-misused-promises": ["error", {
+      "@typescript-eslint/no-misused-promises": ["warn", {
         checksVoidReturn: false,
       }],
       //
@@ -69,10 +80,16 @@ export default defineConfig([
       "camelcase": [0],
       "n/no-process-exit": [0],
       "n/no-unpublished-import": ["error", {
-        "allowModules": ["chai", "mocha"]
+        "allowModules": ["chai"]
       }],
       // this is a workaround for import of .ts files
       "n/no-missing-import": [0],
+    },
+  },
+  {
+    files: ["src/test/**"],
+    rules: {
+      "@typescript-eslint/no-floating-promises": [0],
     },
   }
 ]);

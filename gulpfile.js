@@ -17,10 +17,14 @@ gulp.task("ts",
     exec.task("tsc -p src")
   ));
 
+gulp.task("spell", exec.task("cspell --no-progress"));
+
+gulp.task("type-coverage", exec.task("type-coverage --detail"));
+
 gulp.task("lint", exec.task("eslint src"));
 
-gulp.task("test", exec.task("mocha -r ts-node/register --reporter list --extension js,ts --recursive build/test"));
+gulp.task("test", exec.task("tsx --test --test-concurrency=1 --test-reporter=spec src/test/*.ts"));
 
 gulp.task("build", gulp.series("ts"));
 
-gulp.task("default", gulp.series("ts", "lint", "test"));
+gulp.task("default", gulp.series("type-coverage", "spell", "ts", "lint", "test"));
