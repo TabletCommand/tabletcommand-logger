@@ -8,7 +8,7 @@ import {
 import { Query } from "express-serve-static-core";
 import _ from "lodash";
 
-import { redactOriginalURL } from "./logger";
+import { redactHeaders, redactOriginalURL } from "./logger";
 
 const allowedMethods = ["POST"];
 
@@ -86,13 +86,13 @@ export default function statusLogger(logger?: Logger) {
       const cleanReq = _.pick(req, [
         "body",
         "departmentLog",
-        "headers",
         "httpVersion",
         "method",
         "originalUrl",
         "path",
         "query",
-      ]);
+      ]) as Partial<Request>;
+      cleanReq.headers = redactHeaders(req.headers);
       cleanReq.originalUrl = redactOriginalURL(req.originalUrl);
       cleanReq.query = redactQuery(req.query);
 

@@ -73,13 +73,13 @@ function statusLogger(logger) {
             const cleanReq = lodash_1.default.pick(req, [
                 "body",
                 "departmentLog",
-                "headers",
                 "httpVersion",
                 "method",
                 "originalUrl",
                 "path",
                 "query",
             ]);
+            cleanReq.headers = (0, logger_1.redactHeaders)(req.headers);
             cleanReq.originalUrl = (0, logger_1.redactOriginalURL)(req.originalUrl);
             cleanReq.query = redactQuery(req.query);
             const cleanRes = lodash_1.default.pick(res, [
