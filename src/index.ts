@@ -4,6 +4,7 @@ import _metricsMiddleware, { cleanUpParams, } from "./middleware/metrics";
 import _statusLogger from "./middleware/status-logger";
 
 export { LoggerConfig } from "./winston-logger";
+export { redactHeaders, redactOriginalURL, redactQuery } from "./middleware/logger";
 
 export const logger = _logger;
 export const loggerMiddleware = _loggerMiddleware;

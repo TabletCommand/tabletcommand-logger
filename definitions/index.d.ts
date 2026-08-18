@@ -3,6 +3,7 @@ import _loggerMiddleware from "./middleware/logger";
 import _metricsMiddleware, { cleanUpParams } from "./middleware/metrics";
 import _statusLogger from "./middleware/status-logger";
 export { LoggerConfig } from "./winston-logger";
+export { redactHeaders, redactOriginalURL, redactQuery } from "./middleware/logger";
 export declare const logger: typeof _logger;
 export declare const loggerMiddleware: typeof _loggerMiddleware;
 export declare const metricsCleanUpParams: typeof cleanUpParams;

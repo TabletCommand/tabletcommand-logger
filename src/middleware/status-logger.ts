@@ -5,10 +5,11 @@ import {
   Request,
   Response,
 } from "express";
-import { Query } from "express-serve-static-core";
 import _ from "lodash";
 
-import { redactHeaders, redactOriginalURL } from "./logger";
+import { redactHeaders, redactOriginalURL, redactQuery } from "./logger";
+
+export { redactQuery };
 
 const allowedMethods = ["POST"];
 
@@ -38,14 +39,6 @@ export function requestDuration(endTime: Date, startTime?: Date): number {
   }
 
   return endTime.valueOf() - startTime.valueOf();
-}
-
-export function redactQuery(q: Query) {
-  if (_.isString(q.apikey)) {
-    q.apikey = q.apikey.substring(0, 7);
-  }
-
-  return q;
 }
 
 export default function statusLogger(logger?: Logger) {
