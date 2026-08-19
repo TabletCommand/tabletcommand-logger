@@ -38,6 +38,13 @@ describe("Logger Middleware", function() {
       assert.deepEqual(sut, { authorization: "abcdef1" });
     });
 
+    // The first word was kept whole as a scheme, which logged a credential that holds a
+    // space.
+    it("cuts an authorization credential that holds a space", function() {
+      const sut = redactHeaders({ authorization: "abcdef1234567 7654321fedcba" });
+      assert.deepEqual(sut, { authorization: "abcdef1" });
+    });
+
     it("keeps the cookie names and drops the values", function() {
       const sut = redactHeaders({
         cookie: `seneca-login=${sample}; saml=${other}`,
@@ -128,6 +135,16 @@ describe("Logger Middleware", function() {
       assert.deepEqual(sut, { v: "4", shared: "1" });
     });
 
+    it("cuts a parameter that wraps a key name", function() {
+      const sut = redactQuery({ deviceApiKey: sample, apikeyHash: sample });
+      assert.deepEqual(sut, { deviceApiKey: "abcdef1", apikeyHash: "abcdef1" });
+    });
+
+    it("does not throw on a malformed escape in a parameter name", function() {
+      const sut = redactQuery({ "%ZZ": "4" });
+      assert.deepEqual(sut, { "%ZZ": "4" });
+    });
+
     it("cuts every value of a repeated parameter", function() {
       const sut = redactQuery({ apikey: [sample, "7654321fedcba"] });
       assert.deepEqual(sut, { apikey: ["abcdef1", "7654321"] });
@@ -188,9 +205,48 @@ describe("Logger Middleware", function() {
       assert.equal(redacted, "/api/v2/personnel?apikey=abcdef1&personnelApiKey=1234567");
     });
 
-    it("leaves a parameter that only ends in a key name", function() {
-      const redacted = redactOriginalURL("/api/v1/incident?departmentApikey=abcdef1234567");
-      assert.equal(redacted, "/api/v1/incident?departmentApikey=abcdef1234567");
+    it("cuts a parameter that wraps a key name", function() {
+      const redacted = redactOriginalURL("/api/v1/incident?departmentApikey=abcdef1234567&apikeyHash=abcdef1234567");
+      assert.equal(redacted, "/api/v1/incident?departmentApikey=abcdef1&apikeyHash=abcdef1");
+    });
+
+    it("leaves a parameter whose value holds a key name", function() {
+      const redacted = redactOriginalURL("/api/v1/incident?sort=apikey&v=4");
+      assert.equal(redacted, "/api/v1/incident?sort=apikey&v=4");
+    });
+
+    // Express decodes the name, so api%6Bey reaches tabletcommand-session as apikey.
+    it("cuts a key parameter whose name is encoded", function() {
+      const redacted = redactOriginalURL("/api/v1/incident?api%6Bey=abcdef1234567");
+      assert.equal(redacted, "/api/v1/incident?api%6Bey=abcdef1");
+    });
+
+    it("cuts the key of a url nested in a parameter value", function() {
+      const redacted = redactOriginalURL("/login?next=/api/v1/incident?apikey=abcdef1234567");
+      assert.equal(redacted, "/login?next=/api/v1/incident?apikey=abcdef1");
+    });
+
+    it("leaves a url that carries no query", function() {
+      assert.equal(redactOriginalURL("/api/v1/incident"), "/api/v1/incident");
+    });
+
+    it("leaves a parameter that carries no value", function() {
+      assert.equal(redactOriginalURL("/api/v1/incident?apikey&v=4"), "/api/v1/incident?apikey&v=4");
+    });
+
+    // decodeURIComponent throws on a malformed escape, and this runs where a throw ends
+    // the process.
+    it("does not throw on a malformed escape in a parameter name", function() {
+      assert.equal(redactOriginalURL("/api/v1/incident?%ZZ=1&apikey=abcdef1234567"),
+        "/api/v1/incident?%ZZ=1&apikey=abcdef1");
+    });
+
+    // A regex over the whole url backtracked for as long as the url.
+    it("redacts a long url without backtracking", function() {
+      const start = process.hrtime.bigint();
+      redactOriginalURL("/x?" + "apikey".repeat(20000));
+      const elapsedMs = Number(process.hrtime.bigint() - start) / 1e6;
+      assert.isBelow(elapsedMs, 100);
     });
 
     it("returns an empty string for a missing url", function() {

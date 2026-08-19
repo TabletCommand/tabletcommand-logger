@@ -24,16 +24,36 @@ const keyParams = [
     "personnelapikey",
     "signupkey",
 ];
-const keyParamPattern = new RegExp(`([?&](?:${keyParams.join("|")})=)([^&]*)`, "gi");
+// A route can wrap a key name in a longer parameter name, such as deviceApiKey, so match
+// the name loosely. Cutting a parameter that holds no credential costs nothing.
+function isKeyParam(name) {
+    const lower = decodeName(name).toLowerCase();
+    return keyParams.some((keyParam) => lower.includes(keyParam));
+}
+// Express decodes the name before tabletcommand-session reads it, so api%6Bey
+// authenticates as apikey and has to be matched the same way. decodeURIComponent throws
+// on a malformed escape, and this runs in a res "finish" listener where a throw ends the
+// process.
+function decodeName(name) {
+    try {
+        return decodeURIComponent(name.replace(/\+/g, " "));
+    }
+    catch {
+        return name;
+    }
+}
 const redacted = "<redacted>";
 function keepPrefix(value) {
     return value.substring(0, 7);
 }
+// Every scheme this service accepts is a short word, such as Bearer or Basic.
+const schemePattern = /^[A-Za-z]{1,20}$/;
 // A scheme fills the whole prefix on its own, so keep it and take the prefix from the
-// credential behind it.
+// credential behind it. A first word that is not a scheme is part of the credential, so
+// cut the value whole rather than keep that word.
 function redactAuthorization(value) {
     const [scheme, ...rest] = value.split(" ");
-    if (rest.length === 0) {
+    if (rest.length === 0 || !schemePattern.test(scheme)) {
         return keepPrefix(value);
     }
     return `${scheme} ${keepPrefix(rest.join(" "))}`;
@@ -92,19 +112,34 @@ function redactQueryValue(value) {
 function redactQuery(query) {
     const clean = { ...query };
     for (const [name, value] of Object.entries(clean)) {
-        if (lodash_1.default.isUndefined(value) || !keyParams.includes(name.toLowerCase())) {
+        if (lodash_1.default.isUndefined(value) || !isKeyParam(name)) {
             continue;
         }
         clean[name] = redactQueryValue(value);
     }
     return clean;
 }
-// req.originalUrl is relative, so this works on the string rather than parsing a URL.
+function redactParamPair(pair) {
+    const split = pair.indexOf("=");
+    if (split < 0 || !isKeyParam(pair.substring(0, split))) {
+        return pair;
+    }
+    return pair.substring(0, split + 1) + keepPrefix(pair.substring(split + 1));
+}
+// req.originalUrl is relative, so this splits the string rather than parsing a URL. A
+// regex over the whole string backtracks for as long as the url, and the url comes from
+// the caller. Splitting on "?" as well as "&" reaches a nested url in a parameter value.
 function redactOriginalURL(maybeURL) {
     if (!lodash_1.default.isString(maybeURL) || maybeURL === "") {
         return "";
     }
-    return maybeURL.replace(keyParamPattern, (_match, name, value) => `${name}${keepPrefix(value)}`);
+    const queryStart = maybeURL.indexOf("?");
+    if (queryStart < 0) {
+        return maybeURL;
+    }
+    const path = maybeURL.substring(0, queryStart + 1);
+    const parts = maybeURL.substring(queryStart + 1).split(/([?&])/);
+    return path + parts.map((part, index) => index % 2 === 0 ? redactParamPair(part) : part).join("");
 }
 function loggerMiddleware(logger) {
     return function accessLogMiddleware(req, res, next) {
