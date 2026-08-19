@@ -3,12 +3,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.redactQuery = void 0;
 exports.shouldIgnore = shouldIgnore;
 exports.requestDuration = requestDuration;
-exports.redactQuery = redactQuery;
 exports.default = statusLogger;
 const lodash_1 = __importDefault(require("lodash"));
 const logger_1 = require("./logger");
+Object.defineProperty(exports, "redactQuery", { enumerable: true, get: function () { return logger_1.redactQuery; } });
 const allowedMethods = ["POST"];
 function shouldIgnore(req, res) {
     var _a;
@@ -32,12 +33,6 @@ function requestDuration(endTime, startTime) {
         return 0;
     }
     return endTime.valueOf() - startTime.valueOf();
-}
-function redactQuery(q) {
-    if (lodash_1.default.isString(q.apikey)) {
-        q.apikey = q.apikey.substring(0, 7);
-    }
-    return q;
 }
 function statusLogger(logger) {
     return function requestLogger(req, res, next) {
@@ -73,15 +68,15 @@ function statusLogger(logger) {
             const cleanReq = lodash_1.default.pick(req, [
                 "body",
                 "departmentLog",
-                "headers",
                 "httpVersion",
                 "method",
                 "originalUrl",
                 "path",
                 "query",
             ]);
+            cleanReq.headers = (0, logger_1.redactHeaders)(req.headers);
             cleanReq.originalUrl = (0, logger_1.redactOriginalURL)(req.originalUrl);
-            cleanReq.query = redactQuery(req.query);
+            cleanReq.query = (0, logger_1.redactQuery)(req.query);
             const cleanRes = lodash_1.default.pick(res, [
                 "bodyCopy",
                 "responseTime",
