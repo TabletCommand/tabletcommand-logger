@@ -1,53 +1,24 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.default = logger;
-const winston_1 = require("winston");
-const winston_daily_rotate_file_1 = __importDefault(require("winston-daily-rotate-file"));
-const datadog_winston_1 = __importDefault(require("datadog-winston"));
-function logger(config) {
-    const loggingEnabled = config.logToConsole === true || config.logToFile === true || config.logToDatadog === true;
-    if (!loggingEnabled) {
-        return null;
-    }
-    const trs = [];
-    if (config.logToConsole) {
-        const cfg = new winston_1.transports.Console();
-        trs.push(cfg);
-    }
-    if (config.logToFile) {
-        const daily = new winston_daily_rotate_file_1.default({
-            filename: `${config.filename}-%DATE%.json`,
-            dirname: config.dirname,
-            datePattern: "YYYY-MM-DD",
-            zippedArchive: true,
-            maxFiles: "52d",
-            utc: true,
-            watchLog: true,
-        });
-        trs.push(daily);
-    }
-    if (config.logToDatadog) {
-        const dd = new datadog_winston_1.default({
-            apiKey: config.datadogApiKey,
-            service: config.name,
-        });
-        trs.push(dd);
-    }
-    const loggerClient = (0, winston_1.createLogger)({
-        level: "info",
-        format: winston_1.format.combine(
-        // If you pass in a TimestampOptions, it will convert the date from UTC to local TZ
-        winston_1.format.timestamp(), winston_1.format.errors({ stack: true }), winston_1.format.splat(), winston_1.format.json()),
-        defaultMeta: {
-            ...config.extraMeta,
-            service: config.name,
-        },
-        transports: trs,
-        exitOnError: false,
-    });
-    return loggerClient;
-}
+exports.default = void 0;
+__exportStar(require("./pino-logger"), exports);
+var pino_logger_1 = require("./pino-logger");
+Object.defineProperty(exports, "default", { enumerable: true, get: function () { return __importDefault(pino_logger_1).default; } });
 //# sourceMappingURL=winston-logger.js.map

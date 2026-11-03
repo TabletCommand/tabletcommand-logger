@@ -1,9 +1,12 @@
 import { assert } from "chai";
 import { EventEmitter } from "node:events";
+import http from "node:http";
 import { describe, it, describe as context } from "node:test";
+import { Writable } from "node:stream";
 import { Request, Response } from "express";
-import { Logger } from "winston";
+import { StrictLogger } from "../logger-types";
 import loggerMiddleware, { redactHeaders, redactOriginalURL, redactQuery } from "../middleware/logger";
+import logger from "../pino-logger";
 
 // cspell:ignore tcmobile
 
@@ -62,6 +65,25 @@ describe("Logger Middleware", function() {
     it("returns an empty cookie unchanged", function() {
       const sut = redactHeaders({ cookie: "" });
       assert.deepEqual(sut, { cookie: "" });
+    });
+
+    it("redacts set-cookie header as string or array", function() {
+      const sutString = redactHeaders({
+        "set-cookie": "session=SECRET; Path=/",
+      } as unknown as Request["headers"]);
+      assert.deepEqual(sutString, {
+        "set-cookie": "session=<redacted>; Path=<redacted>",
+      } as unknown as Request["headers"]);
+
+      const sutArray = redactHeaders({
+        "set-cookie": ["session=SECRET; Path=/", "remember=12345"],
+      });
+      assert.deepEqual(sutArray, {
+        "set-cookie": [
+          "session=<redacted>; Path=<redacted>",
+          "remember=<redacted>",
+        ],
+      });
     });
 
     it("matches the header name without case", function() {
@@ -262,7 +284,7 @@ describe("Logger Middleware", function() {
         info: (msg: Record<string, unknown>) => {
           line = msg;
         },
-      } as unknown as Logger;
+      } as unknown as StrictLogger;
       const res = new EventEmitter() as unknown as Response;
       res.statusCode = 200;
 
@@ -285,6 +307,182 @@ describe("Logger Middleware", function() {
         method: "GET",
         originalUrl: "/api/v1/incident?apikey=abcdef1",
       });
+    });
+  });
+
+  context("pino-http integration with real logger", () => {
+    it("redacts response set-cookie and authorization headers (H1)", async () => {
+      const lines: Record<string, unknown>[] = [];
+      const capture = new Writable({
+        write(chunk: Buffer | string, _encoding: string, callback: (error?: Error | null) => void) {
+          try {
+            lines.push(JSON.parse(chunk.toString()) as Record<string, unknown>);
+          } catch {
+            // ignore
+          }
+          callback();
+        },
+      });
+
+      const log = logger({ name: "test-response-redaction" }, capture);
+      const middleware = loggerMiddleware(log as StrictLogger);
+
+      const server = http.createServer((req, res) => {
+        middleware(req as unknown as Request, res as unknown as Response, () => {
+          res.setHeader("set-cookie", "session=SECRET; Path=/");
+          res.setHeader("authorization", "Bearer SECRET12345");
+          res.statusCode = 200;
+          res.end("ok");
+        });
+      });
+
+      await new Promise<void>((resolve, reject) => {
+        server.listen(0, () => {
+          const address = server.address();
+          if (!address || typeof address === "string") {
+            server.close();
+            return reject(new Error("Unable to bind test server"));
+          }
+          const port = address.port;
+          http.get(`http://127.0.0.1:${port}/test`, (res) => {
+            res.resume();
+            res.on("end", () => {
+              server.close(() => resolve());
+            });
+          }).on("error", (err) => {
+            server.close(() => reject(err));
+          });
+        });
+      });
+
+      assert.equal(lines.length, 1);
+      const line = lines[0];
+      const resObj = line.res as { statusCode: number; headers: Record<string, unknown> };
+      assert.isDefined(resObj);
+      assert.equal(resObj.statusCode, 200);
+      assert.include(String(resObj.headers["set-cookie"]), "session=<redacted>");
+      assert.notInclude(String(resObj.headers["set-cookie"]), "SECRET");
+      assert.equal(resObj.headers.authorization, "Bearer SECRET1");
+    });
+
+    it("redacts credentials in request login body (M2)", async () => {
+      const lines: Record<string, unknown>[] = [];
+      const capture = new Writable({
+        write(chunk: Buffer | string, _encoding: string, callback: (error?: Error | null) => void) {
+          try {
+            lines.push(JSON.parse(chunk.toString()) as Record<string, unknown>);
+          } catch {
+            // ignore
+          }
+          callback();
+        },
+      });
+
+      const log = logger({ name: "test-login-body" }, capture);
+      const middleware = loggerMiddleware(log as StrictLogger);
+
+      const server = http.createServer((req, res) => {
+        (req as Request).body = {
+          username: "alice",
+          password: "mySecretPassword123",
+        };
+        middleware(req as unknown as Request, res as unknown as Response, () => {
+          res.statusCode = 200;
+          res.end("ok");
+        });
+      });
+
+      await new Promise<void>((resolve, reject) => {
+        server.listen(0, () => {
+          const address = server.address();
+          if (!address || typeof address === "string") {
+            server.close();
+            return reject(new Error("Unable to bind test server"));
+          }
+          const port = address.port;
+          const postReq = http.request(
+            `http://127.0.0.1:${port}/login`,
+            { method: "POST" },
+            (res) => {
+              res.resume();
+              res.on("end", () => {
+                server.close(() => resolve());
+              });
+            }
+          );
+          postReq.on("error", (err) => {
+            server.close(() => reject(err));
+          });
+          postReq.end();
+        });
+      });
+
+      assert.equal(lines.length, 1);
+      const line = lines[0];
+      const reqObj = line.req as { body: { username: string; password: string } };
+      assert.isDefined(reqObj);
+      assert.equal(reqObj.body.username, "alice");
+      assert.equal(reqObj.body.password, "<redacted>");
+    });
+
+    it("redacts secrets inside array of objects in request body (M2)", async () => {
+      const lines: Record<string, unknown>[] = [];
+      const capture = new Writable({
+        write(chunk: Buffer | string, _encoding: string, callback: (error?: Error | null) => void) {
+          try {
+            lines.push(JSON.parse(chunk.toString()) as Record<string, unknown>);
+          } catch {
+            // ignore
+          }
+          callback();
+        },
+      });
+
+      const log = logger({ name: "test-array-body" }, capture);
+      const middleware = loggerMiddleware(log as StrictLogger);
+
+      const server = http.createServer((req, res) => {
+        (req as Request).body = {
+          items: [
+            { apikey: "abcdef1234567" },
+          ],
+        };
+        middleware(req as unknown as Request, res as unknown as Response, () => {
+          res.statusCode = 200;
+          res.end("ok");
+        });
+      });
+
+      await new Promise<void>((resolve, reject) => {
+        server.listen(0, () => {
+          const address = server.address();
+          if (!address || typeof address === "string") {
+            server.close();
+            return reject(new Error("Unable to bind test server"));
+          }
+          const port = address.port;
+          const postReq = http.request(
+            `http://127.0.0.1:${port}/items`,
+            { method: "POST" },
+            (res) => {
+              res.resume();
+              res.on("end", () => {
+                server.close(() => resolve());
+              });
+            }
+          );
+          postReq.on("error", (err) => {
+            server.close(() => reject(err));
+          });
+          postReq.end();
+        });
+      });
+
+      assert.equal(lines.length, 1);
+      const line = lines[0];
+      const reqObj = line.req as { body: { items: { apikey: string }[] } };
+      assert.isDefined(reqObj);
+      assert.equal(reqObj.body.items[0].apikey, "abcdef1");
     });
   });
 });

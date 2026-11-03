@@ -38,9 +38,12 @@ Montebello
 myhash
 Novato
 Onscene
+opentelemetry
+otel
 Peraton
 personnelapi
 personnelapikey
+pino
 Postdirectional
 Predirectional
 Prio

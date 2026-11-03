@@ -90,6 +90,7 @@ export default defineConfig([
     files: ["src/test/**"],
     rules: {
       "@typescript-eslint/no-floating-promises": [0],
+      "n/no-unpublished-import": [0],
     },
   }
 ]);

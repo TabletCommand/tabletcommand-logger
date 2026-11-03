@@ -36,8 +36,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.statusLogger = exports.metricsMiddleware = exports.metricsCleanUpParams = exports.loggerMiddleware = exports.logger = exports.redactQuery = exports.redactOriginalURL = exports.redactHeaders = void 0;
-const winston_logger_1 = __importDefault(require("./winston-logger"));
+exports.statusLogger = exports.metricsMiddleware = exports.metricsCleanUpParams = exports.loggerMiddleware = exports.logger = exports.isPinoPrettyAvailable = exports.pinoCensor = exports.MAX_REDACT_DEPTH = exports.REDACT_PATHS = exports.redactQuery = exports.redactOriginalURL = exports.redactHeaders = void 0;
+const pino_logger_1 = __importStar(require("./pino-logger"));
 const logger_1 = __importDefault(require("./middleware/logger"));
 const metrics_1 = __importStar(require("./middleware/metrics"));
 const status_logger_1 = __importDefault(require("./middleware/status-logger"));
@@ -45,12 +45,19 @@ var logger_2 = require("./middleware/logger");
 Object.defineProperty(exports, "redactHeaders", { enumerable: true, get: function () { return logger_2.redactHeaders; } });
 Object.defineProperty(exports, "redactOriginalURL", { enumerable: true, get: function () { return logger_2.redactOriginalURL; } });
 Object.defineProperty(exports, "redactQuery", { enumerable: true, get: function () { return logger_2.redactQuery; } });
-exports.logger = winston_logger_1.default;
+var redaction_1 = require("./redaction");
+Object.defineProperty(exports, "REDACT_PATHS", { enumerable: true, get: function () { return redaction_1.REDACT_PATHS; } });
+Object.defineProperty(exports, "MAX_REDACT_DEPTH", { enumerable: true, get: function () { return redaction_1.MAX_REDACT_DEPTH; } });
+Object.defineProperty(exports, "pinoCensor", { enumerable: true, get: function () { return redaction_1.pinoCensor; } });
+var pino_logger_2 = require("./pino-logger");
+Object.defineProperty(exports, "isPinoPrettyAvailable", { enumerable: true, get: function () { return pino_logger_2.isPinoPrettyAvailable; } });
+exports.logger = pino_logger_1.default;
 exports.loggerMiddleware = logger_1.default;
 exports.metricsCleanUpParams = metrics_1.cleanUpParams;
 exports.metricsMiddleware = metrics_1.default;
 exports.statusLogger = status_logger_1.default;
 exports.default = {
+    isPinoPrettyAvailable: pino_logger_1.isPinoPrettyAvailable,
     logger: exports.logger,
     loggerMiddleware: exports.loggerMiddleware,
     metricsMiddleware: exports.metricsMiddleware,

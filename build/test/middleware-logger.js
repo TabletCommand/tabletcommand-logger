@@ -32,11 +32,17 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const chai_1 = require("chai");
 const node_events_1 = require("node:events");
+const node_http_1 = __importDefault(require("node:http"));
 const node_test_1 = require("node:test");
+const node_stream_1 = require("node:stream");
 const logger_1 = __importStar(require("../middleware/logger"));
+const pino_logger_1 = __importDefault(require("../pino-logger"));
 // cspell:ignore tcmobile
 (0, node_test_1.describe)("Logger Middleware", function () {
     (0, node_test_1.describe)("Redact Headers", () => {
@@ -86,6 +92,23 @@ const logger_1 = __importStar(require("../middleware/logger"));
         (0, node_test_1.it)("returns an empty cookie unchanged", function () {
             const sut = (0, logger_1.redactHeaders)({ cookie: "" });
             chai_1.assert.deepEqual(sut, { cookie: "" });
+        });
+        (0, node_test_1.it)("redacts set-cookie header as string or array", function () {
+            const sutString = (0, logger_1.redactHeaders)({
+                "set-cookie": "session=SECRET; Path=/",
+            });
+            chai_1.assert.deepEqual(sutString, {
+                "set-cookie": "session=<redacted>; Path=<redacted>",
+            });
+            const sutArray = (0, logger_1.redactHeaders)({
+                "set-cookie": ["session=SECRET; Path=/", "remember=12345"],
+            });
+            chai_1.assert.deepEqual(sutArray, {
+                "set-cookie": [
+                    "session=<redacted>; Path=<redacted>",
+                    "remember=<redacted>",
+                ],
+            });
         });
         (0, node_test_1.it)("matches the header name without case", function () {
             const sut = (0, logger_1.redactHeaders)({
@@ -274,6 +297,162 @@ const logger_1 = __importStar(require("../middleware/logger"));
                 method: "GET",
                 originalUrl: "/api/v1/incident?apikey=abcdef1",
             });
+        });
+    });
+    (0, node_test_1.describe)("pino-http integration with real logger", () => {
+        (0, node_test_1.it)("redacts response set-cookie and authorization headers (H1)", async () => {
+            const lines = [];
+            const capture = new node_stream_1.Writable({
+                write(chunk, _encoding, callback) {
+                    try {
+                        lines.push(JSON.parse(chunk.toString()));
+                    }
+                    catch {
+                        // ignore
+                    }
+                    callback();
+                },
+            });
+            const log = (0, pino_logger_1.default)({ name: "test-response-redaction" }, capture);
+            const middleware = (0, logger_1.default)(log);
+            const server = node_http_1.default.createServer((req, res) => {
+                middleware(req, res, () => {
+                    res.setHeader("set-cookie", "session=SECRET; Path=/");
+                    res.setHeader("authorization", "Bearer SECRET12345");
+                    res.statusCode = 200;
+                    res.end("ok");
+                });
+            });
+            await new Promise((resolve, reject) => {
+                server.listen(0, () => {
+                    const address = server.address();
+                    if (!address || typeof address === "string") {
+                        server.close();
+                        return reject(new Error("Unable to bind test server"));
+                    }
+                    const port = address.port;
+                    node_http_1.default.get(`http://127.0.0.1:${port}/test`, (res) => {
+                        res.resume();
+                        res.on("end", () => {
+                            server.close(() => resolve());
+                        });
+                    }).on("error", (err) => {
+                        server.close(() => reject(err));
+                    });
+                });
+            });
+            chai_1.assert.equal(lines.length, 1);
+            const line = lines[0];
+            const resObj = line.res;
+            chai_1.assert.isDefined(resObj);
+            chai_1.assert.equal(resObj.statusCode, 200);
+            chai_1.assert.include(String(resObj.headers["set-cookie"]), "session=<redacted>");
+            chai_1.assert.notInclude(String(resObj.headers["set-cookie"]), "SECRET");
+            chai_1.assert.equal(resObj.headers.authorization, "Bearer SECRET1");
+        });
+        (0, node_test_1.it)("redacts credentials in request login body (M2)", async () => {
+            const lines = [];
+            const capture = new node_stream_1.Writable({
+                write(chunk, _encoding, callback) {
+                    try {
+                        lines.push(JSON.parse(chunk.toString()));
+                    }
+                    catch {
+                        // ignore
+                    }
+                    callback();
+                },
+            });
+            const log = (0, pino_logger_1.default)({ name: "test-login-body" }, capture);
+            const middleware = (0, logger_1.default)(log);
+            const server = node_http_1.default.createServer((req, res) => {
+                req.body = {
+                    username: "alice",
+                    password: "mySecretPassword123",
+                };
+                middleware(req, res, () => {
+                    res.statusCode = 200;
+                    res.end("ok");
+                });
+            });
+            await new Promise((resolve, reject) => {
+                server.listen(0, () => {
+                    const address = server.address();
+                    if (!address || typeof address === "string") {
+                        server.close();
+                        return reject(new Error("Unable to bind test server"));
+                    }
+                    const port = address.port;
+                    const postReq = node_http_1.default.request(`http://127.0.0.1:${port}/login`, { method: "POST" }, (res) => {
+                        res.resume();
+                        res.on("end", () => {
+                            server.close(() => resolve());
+                        });
+                    });
+                    postReq.on("error", (err) => {
+                        server.close(() => reject(err));
+                    });
+                    postReq.end();
+                });
+            });
+            chai_1.assert.equal(lines.length, 1);
+            const line = lines[0];
+            const reqObj = line.req;
+            chai_1.assert.isDefined(reqObj);
+            chai_1.assert.equal(reqObj.body.username, "alice");
+            chai_1.assert.equal(reqObj.body.password, "<redacted>");
+        });
+        (0, node_test_1.it)("redacts secrets inside array of objects in request body (M2)", async () => {
+            const lines = [];
+            const capture = new node_stream_1.Writable({
+                write(chunk, _encoding, callback) {
+                    try {
+                        lines.push(JSON.parse(chunk.toString()));
+                    }
+                    catch {
+                        // ignore
+                    }
+                    callback();
+                },
+            });
+            const log = (0, pino_logger_1.default)({ name: "test-array-body" }, capture);
+            const middleware = (0, logger_1.default)(log);
+            const server = node_http_1.default.createServer((req, res) => {
+                req.body = {
+                    items: [
+                        { apikey: "abcdef1234567" },
+                    ],
+                };
+                middleware(req, res, () => {
+                    res.statusCode = 200;
+                    res.end("ok");
+                });
+            });
+            await new Promise((resolve, reject) => {
+                server.listen(0, () => {
+                    const address = server.address();
+                    if (!address || typeof address === "string") {
+                        server.close();
+                        return reject(new Error("Unable to bind test server"));
+                    }
+                    const port = address.port;
+                    const postReq = node_http_1.default.request(`http://127.0.0.1:${port}/items`, { method: "POST" }, (res) => {
+                        res.resume();
+                        res.on("end", () => {
+                            server.close(() => resolve());
+                        });
+                    });
+                    postReq.on("error", (err) => {
+                        server.close(() => reject(err));
+                    });
+                    postReq.end();
+                });
+            });
+            chai_1.assert.equal(lines.length, 1);
+            const line = lines[0];
+            const reqObj = line.req;
+            chai_1.assert.isDefined(reqObj);
+            chai_1.assert.equal(reqObj.body.items[0].apikey, "abcdef1");
         });
     });
 });

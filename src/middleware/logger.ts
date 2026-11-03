@@ -1,190 +1,116 @@
-import _ from "lodash";
-import { Logger } from "winston";
+import { NextFunction, Request, Response } from "express";
+import pino from "pino";
+import pinoHttp from "pino-http";
+import { StrictLogger } from "../logger-types";
 import {
-  NextFunction,
-  Request,
-  Response,
-} from "express";
-import { Query } from "express-serve-static-core";
+  redactHeaders,
+  redactOriginalURL,
+  redactQuery,
+} from "../redaction";
 
-// Each of these authenticates a request on its own, so a log line that keeps the whole
-// value is a live credential. The header stays, cut to a 7-character prefix: enough to
-// tell two keys apart, not enough to replay one. Node lowercases incoming header names.
-const keyHeaders = [
-  "authorization",
-  "apikey",
-  "personnelapikey",
-  "x-tc-auth-token",
-];
+export { redactHeaders, redactOriginalURL, redactQuery };
 
-// tabletcommand-session reads each of these from the query string when the header is
-// absent, and accepts either spelling. signupKey only ever arrives in the query.
-const keyParams = [
-  "apikey",
-  "personnelapikey",
-  "signupkey",
-];
-
-// A route can wrap a key name in a longer parameter name, such as deviceApiKey, so match
-// the name loosely. Cutting a parameter that holds no credential costs nothing.
-function isKeyParam(name: string): boolean {
-  const lower = decodeName(name).toLowerCase();
-  return keyParams.some((keyParam) => lower.includes(keyParam));
-}
-
-// Express decodes the name before tabletcommand-session reads it, so api%6Bey
-// authenticates as apikey and has to be matched the same way. decodeURIComponent throws
-// on a malformed escape, and this runs in a res "finish" listener where a throw ends the
-// process.
-function decodeName(name: string): string {
-  try {
-    return decodeURIComponent(name.replace(/\+/g, " "));
-  } catch {
-    return name;
-  }
-}
-
-const redacted = "<redacted>";
-
-function keepPrefix(value: string): string {
-  return value.substring(0, 7);
-}
-
-// Every scheme this service accepts is a short word, such as Bearer or Basic.
-const schemePattern = /^[A-Za-z]{1,20}$/;
-
-// A scheme fills the whole prefix on its own, so keep it and take the prefix from the
-// credential behind it. A first word that is not a scheme is part of the credential, so
-// cut the value whole rather than keep that word.
-function redactAuthorization(value: string): string {
-  const [scheme, ...rest] = value.split(" ");
-  if (rest.length === 0 || !schemePattern.test(scheme)) {
-    return keepPrefix(value);
-  }
-  return `${scheme} ${keepPrefix(rest.join(" "))}`;
-}
-
-// Cookie names answer "did the caller send a session at all", so they stay and the values go.
-function redactCookie(value: string): string {
-  return value
-    .split(";")
-    .map((pair) => pair.split("=")[0].trim())
-    .filter((name) => name !== "")
-    .map((name) => `${name}=${redacted}`)
-    .join("; ");
-}
-
-function redactorFor(name: string): (value: string) => string {
-  if (name === "cookie") {
-    return redactCookie;
-  }
-  if (name === "authorization") {
-    return redactAuthorization;
-  }
-  return keepPrefix;
-}
-
-// Node only gives a string or an array of strings, so anything else means other
-// middleware wrote to req.headers. Drop it rather than throw: this runs in a res
-// "finish" listener, where an exception ends the process.
-function redactHeaderValue(name: string, value: unknown): string | string[] {
-  const redact = redactorFor(name);
-  if (_.isArray(value)) {
-    return value.map((entry: unknown) => _.isString(entry) ? redact(entry) : redacted);
-  }
-  if (!_.isString(value)) {
-    return redacted;
-  }
-  return redact(value);
-}
-
-export function redactHeaders(headers: Request["headers"]): Request["headers"] {
-  const clean = { ...headers };
-  for (const [name, value] of Object.entries(clean)) {
-    const lower = name.toLowerCase();
-    if (_.isUndefined(value) || (lower !== "cookie" && !keyHeaders.includes(lower))) {
-      continue;
-    }
-    clean[name] = redactHeaderValue(lower, value);
-  }
-  return clean;
-}
-
-function redactQueryValue(value: Query[string]): Query[string] {
-  if (_.isString(value)) {
-    return keepPrefix(value);
-  }
-  if (_.isArray(value)) {
-    return value.map((entry: unknown) => _.isString(entry) ? keepPrefix(entry) : redacted);
-  }
-  return redacted;
-}
-
-export function redactQuery(query: Query): Query {
-  const clean: Query = { ...query };
-  for (const [name, value] of Object.entries(clean)) {
-    if (_.isUndefined(value) || !isKeyParam(name)) {
-      continue;
-    }
-    clean[name] = redactQueryValue(value);
-  }
-  return clean;
-}
-
-function redactParamPair(pair: string): string {
-  const split = pair.indexOf("=");
-  if (split < 0 || !isKeyParam(pair.substring(0, split))) {
-    return pair;
-  }
-  return pair.substring(0, split + 1) + keepPrefix(pair.substring(split + 1));
-}
-
-// req.originalUrl is relative, so this splits the string rather than parsing a URL. A
-// regex over the whole string backtracks for as long as the url, and the url comes from
-// the caller. Splitting on "?" as well as "&" reaches a nested url in a parameter value.
-export function redactOriginalURL(maybeURL?: string): string {
-  if (!_.isString(maybeURL) || maybeURL === "") {
-    return "";
+export default function loggerMiddleware(logger?: StrictLogger | null) {
+  if (!logger) {
+    return function noopMiddleware(_req: Request, _res: Response, next: NextFunction) {
+      return next();
+    };
   }
 
-  const queryStart = maybeURL.indexOf("?");
-  if (queryStart < 0) {
-    return maybeURL;
+  type ExtendedLogger = StrictLogger & {
+    child?: (bindings?: Record<string, unknown>) => StrictLogger;
+    levels?: { values: Record<string, number> };
+    [key: symbol]: unknown;
+  };
+  const anyLog = logger as ExtendedLogger;
+  const asJson = (pino.symbols as Record<string, symbol>).asJsonSym;
+  const isPinoInstance =
+    typeof (anyLog as Record<symbol, unknown>)[asJson] === "function" ||
+    (typeof anyLog.child === "function" && Boolean(anyLog.levels));
+
+  if (isPinoInstance && typeof (anyLog as Record<symbol, unknown>)[asJson] === "function") {
+    const pHttp = pinoHttp({
+      logger: anyLog as unknown as pino.Logger,
+      customProps: (req: unknown, res: unknown) => {
+        const expressReq = req as Request;
+        const expressRes = res as Response;
+        const originalUrl = expressReq.originalUrl || expressReq.url || "";
+        return {
+          remoteAddress: expressReq.ip || expressReq.socket?.remoteAddress,
+          method: expressReq.method,
+          url: redactOriginalURL(originalUrl),
+          protocol: expressReq.protocol,
+          hostname: expressReq.hostname,
+          httpVersion: expressReq.httpVersionMajor
+            ? `${expressReq.httpVersionMajor}.${expressReq.httpVersionMinor}`
+            : expressReq.httpVersion,
+          userAgent: expressReq.headers ? expressReq.headers["user-agent"] : undefined,
+          status: expressRes.statusCode ? expressRes.statusCode : 0,
+        };
+      },
+      serializers: {
+        req: (req: unknown) => {
+          const r = req as Request & { raw?: Request };
+          const originalUrl = r.raw?.originalUrl || r.originalUrl || r.url || "";
+          return {
+            body: r.raw?.body ?? r.body,
+            headers: redactHeaders(r.headers || {}),
+            method: r.method,
+            originalUrl: redactOriginalURL(originalUrl),
+          };
+        },
+        res: (res: unknown) => {
+          const r = res as Response & {
+            getHeaders?: () => Record<string, unknown>;
+            raw?: { getHeaders?: () => Record<string, unknown> };
+          };
+          const rawRes = r.raw || r;
+          let headers: Record<string, unknown> = {};
+          if (typeof rawRes.getHeaders === "function") {
+            headers = rawRes.getHeaders();
+          } else if (typeof r.getHeaders === "function") {
+            headers = r.getHeaders();
+          }
+          return {
+            statusCode: r.statusCode,
+            headers: redactHeaders(headers as Request["headers"]),
+          };
+        },
+      },
+    });
+
+    return function accessLogMiddleware(req: Request, res: Response, next: NextFunction) {
+      return pHttp(req, res, next);
+    };
   }
 
-  const path = maybeURL.substring(0, queryStart + 1);
-  const parts = maybeURL.substring(queryStart + 1).split(/([?&])/);
-
-  return path + parts.map((part, index) => index % 2 === 0 ? redactParamPair(part) : part).join("");
-}
-
-export default function loggerMiddleware(logger?: Logger) {
+  // Fallback for mocks or custom logger implementations
   return function accessLogMiddleware(req: Request, res: Response, next: NextFunction) {
-    // This doesn't fire the log immediately, but waits until the response is finished
-    // This means we have a chance of logging the response code
+    if (typeof anyLog.child === "function" && !req.log) {
+      req.log = anyLog.child() as unknown as pino.Logger;
+    }
+
     res.on("finish", () => {
-      // Skip this if no logger is set
-      if (!logger) {
-        return;
-      }
       logger.info({
         remoteAddress: req.ip,
         method: req.method,
         url: redactOriginalURL(req.originalUrl),
         protocol: req.protocol,
         hostname: req.hostname,
-        httpVersion: `${req.httpVersionMajor}.${req.httpVersionMinor}`,
-        userAgent: req.headers["user-agent"],
-        // Added as compatibility
+        httpVersion: req.httpVersionMajor
+          ? `${req.httpVersionMajor}.${req.httpVersionMinor}`
+          : req.httpVersion,
+        userAgent: req.headers ? req.headers["user-agent"] : undefined,
         req: {
           body: req.body as unknown,
           headers: redactHeaders(req.headers),
           method: req.method,
-          originalUrl: redactOriginalURL(req.originalUrl)
+          originalUrl: redactOriginalURL(req.originalUrl),
         },
-        status: res.statusCode ? res.statusCode : 0
+        status: res.statusCode ? res.statusCode : 0,
       });
     });
+
     return next();
   };
 }
