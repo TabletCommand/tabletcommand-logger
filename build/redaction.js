@@ -9,6 +9,7 @@ exports.decodeName = decodeName;
 exports.keepPrefix = keepPrefix;
 exports.redactAuthorization = redactAuthorization;
 exports.redactCookie = redactCookie;
+exports.redactSetCookie = redactSetCookie;
 exports.redactorFor = redactorFor;
 exports.redactHeaderValue = redactHeaderValue;
 exports.redactHeaders = redactHeaders;
@@ -77,9 +78,37 @@ function redactCookie(value) {
         .map((name) => `${name}=${exports.redacted}`)
         .join("; ");
 }
+// Set-Cookie header contains the cookie pair first, followed by optional attributes
+// (e.g. "session=SECRET; Path=/; Domain=.tabletcommand.com; Max-Age=3600; HttpOnly; Secure; SameSite=None").
+// Redact only the first pair's value while keeping attributes intact for security auditing.
+function redactSetCookie(value) {
+    if (!value || value.trim() === "") {
+        return "";
+    }
+    const parts = value.split(";");
+    const first = parts[0].trim();
+    if (first === "") {
+        return "";
+    }
+    const equalsIndex = first.indexOf("=");
+    const firstRedacted = equalsIndex < 0
+        ? `${first}=${exports.redacted}`
+        : `${first.substring(0, equalsIndex).trim()}=${exports.redacted}`;
+    const attributes = parts
+        .slice(1)
+        .map((attr) => attr.trim())
+        .filter((attr) => attr !== "");
+    if (attributes.length === 0) {
+        return firstRedacted;
+    }
+    return [firstRedacted, ...attributes].join("; ");
+}
 function redactorFor(name) {
-    if (name === "cookie" || name === "set-cookie") {
+    if (name === "cookie") {
         return redactCookie;
+    }
+    if (name === "set-cookie") {
+        return redactSetCookie;
     }
     if (name === "authorization") {
         return redactAuthorization;
@@ -192,11 +221,18 @@ exports.REDACT_PATHS = [
 ];
 function pinoCensor(value, path) {
     const key = (path && path.length > 0 ? path[path.length - 1] : "").toLowerCase();
-    if (key === "cookie" ||
-        key === "set-cookie" ||
-        (path && (path.includes("cookie") || path.includes("set-cookie")))) {
+    if (key === "cookie" || (path && path.includes("cookie"))) {
         if (typeof value === "string") {
             return redactCookie(value);
+        }
+        return exports.redacted;
+    }
+    if (key === "set-cookie" || (path && path.includes("set-cookie"))) {
+        if (typeof value === "string") {
+            return redactSetCookie(value);
+        }
+        if (Array.isArray(value)) {
+            return value.map((entry) => (typeof entry === "string" ? redactSetCookie(entry) : exports.redacted));
         }
         return exports.redacted;
     }

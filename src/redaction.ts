@@ -69,9 +69,41 @@ export function redactCookie(value: string): string {
     .join("; ");
 }
 
+// Set-Cookie header contains the cookie pair first, followed by optional attributes
+// (e.g. "session=SECRET; Path=/; Domain=.tabletcommand.com; Max-Age=3600; HttpOnly; Secure; SameSite=None").
+// Redact only the first pair's value while keeping attributes intact for security auditing.
+export function redactSetCookie(value: string): string {
+  if (!value || value.trim() === "") {
+    return "";
+  }
+  const parts = value.split(";");
+  const first = parts[0].trim();
+  if (first === "") {
+    return "";
+  }
+  const equalsIndex = first.indexOf("=");
+  const firstRedacted =
+    equalsIndex < 0
+      ? `${first}=${redacted}`
+      : `${first.substring(0, equalsIndex).trim()}=${redacted}`;
+
+  const attributes = parts
+    .slice(1)
+    .map((attr) => attr.trim())
+    .filter((attr) => attr !== "");
+
+  if (attributes.length === 0) {
+    return firstRedacted;
+  }
+  return [firstRedacted, ...attributes].join("; ");
+}
+
 export function redactorFor(name: string): (value: string) => string {
-  if (name === "cookie" || name === "set-cookie") {
+  if (name === "cookie") {
     return redactCookie;
+  }
+  if (name === "set-cookie") {
+    return redactSetCookie;
   }
   if (name === "authorization") {
     return redactAuthorization;
@@ -199,13 +231,19 @@ export const REDACT_PATHS = [
 export function pinoCensor(value: unknown, path?: string[]): unknown {
   const key = (path && path.length > 0 ? path[path.length - 1] : "").toLowerCase();
 
-  if (
-    key === "cookie" ||
-    key === "set-cookie" ||
-    (path && (path.includes("cookie") || path.includes("set-cookie")))
-  ) {
+  if (key === "cookie" || (path && path.includes("cookie"))) {
     if (typeof value === "string") {
       return redactCookie(value);
+    }
+    return redacted;
+  }
+
+  if (key === "set-cookie" || (path && path.includes("set-cookie"))) {
+    if (typeof value === "string") {
+      return redactSetCookie(value);
+    }
+    if (Array.isArray(value)) {
+      return value.map((entry: unknown): string => (typeof entry === "string" ? redactSetCookie(entry) : redacted));
     }
     return redacted;
   }

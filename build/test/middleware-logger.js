@@ -93,20 +93,23 @@ const pino_logger_1 = __importDefault(require("../pino-logger"));
             const sut = (0, logger_1.redactHeaders)({ cookie: "" });
             chai_1.assert.deepEqual(sut, { cookie: "" });
         });
-        (0, node_test_1.it)("redacts set-cookie header as string or array", function () {
+        (0, node_test_1.it)("redacts set-cookie header leaving attributes intact", function () {
             const sutString = (0, logger_1.redactHeaders)({
-                "set-cookie": "session=SECRET; Path=/",
+                "set-cookie": "session=SECRET_TOKEN; Path=/; Domain=.tabletcommand.com; Max-Age=3600; HttpOnly; Secure; SameSite=None",
             });
             chai_1.assert.deepEqual(sutString, {
-                "set-cookie": "session=<redacted>; Path=<redacted>",
+                "set-cookie": "session=<redacted>; Path=/; Domain=.tabletcommand.com; Max-Age=3600; HttpOnly; Secure; SameSite=None",
             });
             const sutArray = (0, logger_1.redactHeaders)({
-                "set-cookie": ["session=SECRET; Path=/", "remember=12345"],
+                "set-cookie": [
+                    "session=SECRET123; Path=/; HttpOnly; Secure; SameSite=None",
+                    "remember=VAL456; Path=/; HttpOnly",
+                ],
             });
             chai_1.assert.deepEqual(sutArray, {
                 "set-cookie": [
-                    "session=<redacted>; Path=<redacted>",
-                    "remember=<redacted>",
+                    "session=<redacted>; Path=/; HttpOnly; Secure; SameSite=None",
+                    "remember=<redacted>; Path=/; HttpOnly",
                 ],
             });
         });
@@ -317,7 +320,7 @@ const pino_logger_1 = __importDefault(require("../pino-logger"));
             const middleware = (0, logger_1.default)(log);
             const server = node_http_1.default.createServer((req, res) => {
                 middleware(req, res, () => {
-                    res.setHeader("set-cookie", "session=SECRET; Path=/");
+                    res.setHeader("set-cookie", "session=SECRET; Path=/; Domain=.tabletcommand.com; Max-Age=3600; HttpOnly; Secure; SameSite=None");
                     res.setHeader("authorization", "Bearer SECRET12345");
                     res.statusCode = 200;
                     res.end("ok");
@@ -346,8 +349,15 @@ const pino_logger_1 = __importDefault(require("../pino-logger"));
             const resObj = line.res;
             chai_1.assert.isDefined(resObj);
             chai_1.assert.equal(resObj.statusCode, 200);
-            chai_1.assert.include(String(resObj.headers["set-cookie"]), "session=<redacted>");
-            chai_1.assert.notInclude(String(resObj.headers["set-cookie"]), "SECRET");
+            const setCookie = String(resObj.headers["set-cookie"]);
+            chai_1.assert.include(setCookie, "session=<redacted>");
+            chai_1.assert.notInclude(setCookie, "SECRET");
+            chai_1.assert.include(setCookie, "SameSite=None");
+            chai_1.assert.include(setCookie, "HttpOnly");
+            chai_1.assert.include(setCookie, "Secure");
+            chai_1.assert.include(setCookie, "Path=/");
+            chai_1.assert.include(setCookie, "Domain=.tabletcommand.com");
+            chai_1.assert.include(setCookie, "Max-Age=3600");
             chai_1.assert.equal(resObj.headers.authorization, "Bearer SECRET1");
         });
         (0, node_test_1.it)("redacts credentials in request login body (M2)", async () => {

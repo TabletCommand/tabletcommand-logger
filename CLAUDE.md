@@ -46,7 +46,8 @@ Version **4.0.0** is powered by **Pino**, writing structured JSON directly to `p
    - Custom `pinoCensor` function applies Tablet Command's partial exposure rule:
      - API keys & tokens: truncated to first 7 characters (`value.substring(0, 7)`).
      - Authorization headers: preserves scheme (`Bearer `, `Basic `) and truncates credential to 7 characters on both request and response (`res.headers.authorization`).
-     - Cookies & Set-Cookie: preserves cookie names, masks values with `<redacted>` on both request (`cookie`) and response (`set-cookie`).
+     - Request Cookies (`cookie`): preserves cookie names, masks values with `<redacted>`.
+     - Response Set-Cookie (`set-cookie`): redacts only the first pair's cookie value while keeping security attributes (`Path`, `Domain`, `Max-Age`, `HttpOnly`, `Secure`, `SameSite`) intact for auditing visibility.
      - Passwords & secrets: completely masked with `<redacted>`.
    - Retains and exports URL/header redaction helpers (`redactHeaders`, `redactOriginalURL`, `redactQuery`).
 

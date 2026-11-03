@@ -91,7 +91,8 @@ app.use(loggerMiddleware(appLogger));
 Credentials and secrets are redacted before leaving the process:
 - API Keys (`apikey`, `personnelapikey`, `signupkey`, `x-tc-auth-token`): Truncated to the first 7 characters (e.g. `abcdef1...`).
 - Authorization headers (`Bearer <token>`, `Basic <cred>`): Scheme is preserved and the credential behind it is truncated to 7 characters. Both request (`req.headers.authorization`) and response (`res.headers.authorization`) are redacted.
-- Cookies & Set-Cookie (`cookie`, `set-cookie`): Cookie names are preserved, values are masked with `<redacted>`. Both request (`req.headers.cookie`) and response (`res.headers["set-cookie"]`) headers are redacted.
+- Request Cookies (`cookie`): Cookie names are preserved, values are masked with `<redacted>`.
+- Response Set-Cookie (`set-cookie`): Redacts only the first pair's cookie value (`<name>=<redacted>`) while leaving security attributes (`Path`, `Domain`, `Max-Age`, `HttpOnly`, `Secure`, `SameSite`) intact for auditing visibility.
 - Passwords & Secrets (`password`, `secret`, `credentials`): Completely masked with `<redacted>`.
 - Depth Limit (`MAX_REDACT_DEPTH = 5`): Fast-redact enumerates wildcard paths up to 5 levels deep (including numeric array indices such as `req.body.items[0].apikey`). Callers must not nest credentials deeper than 5 levels.
 

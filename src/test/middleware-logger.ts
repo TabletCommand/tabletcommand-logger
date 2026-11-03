@@ -67,21 +67,24 @@ describe("Logger Middleware", function() {
       assert.deepEqual(sut, { cookie: "" });
     });
 
-    it("redacts set-cookie header as string or array", function() {
+    it("redacts set-cookie header leaving attributes intact", function() {
       const sutString = redactHeaders({
-        "set-cookie": "session=SECRET; Path=/",
+        "set-cookie": "session=SECRET_TOKEN; Path=/; Domain=.tabletcommand.com; Max-Age=3600; HttpOnly; Secure; SameSite=None",
       } as unknown as Request["headers"]);
       assert.deepEqual(sutString, {
-        "set-cookie": "session=<redacted>; Path=<redacted>",
+        "set-cookie": "session=<redacted>; Path=/; Domain=.tabletcommand.com; Max-Age=3600; HttpOnly; Secure; SameSite=None",
       } as unknown as Request["headers"]);
 
       const sutArray = redactHeaders({
-        "set-cookie": ["session=SECRET; Path=/", "remember=12345"],
+        "set-cookie": [
+          "session=SECRET123; Path=/; HttpOnly; Secure; SameSite=None",
+          "remember=VAL456; Path=/; HttpOnly",
+        ],
       });
       assert.deepEqual(sutArray, {
         "set-cookie": [
-          "session=<redacted>; Path=<redacted>",
-          "remember=<redacted>",
+          "session=<redacted>; Path=/; HttpOnly; Secure; SameSite=None",
+          "remember=<redacted>; Path=/; HttpOnly",
         ],
       });
     });
@@ -329,7 +332,10 @@ describe("Logger Middleware", function() {
 
       const server = http.createServer((req, res) => {
         middleware(req as unknown as Request, res as unknown as Response, () => {
-          res.setHeader("set-cookie", "session=SECRET; Path=/");
+          res.setHeader(
+            "set-cookie",
+            "session=SECRET; Path=/; Domain=.tabletcommand.com; Max-Age=3600; HttpOnly; Secure; SameSite=None"
+          );
           res.setHeader("authorization", "Bearer SECRET12345");
           res.statusCode = 200;
           res.end("ok");
@@ -360,8 +366,15 @@ describe("Logger Middleware", function() {
       const resObj = line.res as { statusCode: number; headers: Record<string, unknown> };
       assert.isDefined(resObj);
       assert.equal(resObj.statusCode, 200);
-      assert.include(String(resObj.headers["set-cookie"]), "session=<redacted>");
-      assert.notInclude(String(resObj.headers["set-cookie"]), "SECRET");
+      const setCookie = String(resObj.headers["set-cookie"]);
+      assert.include(setCookie, "session=<redacted>");
+      assert.notInclude(setCookie, "SECRET");
+      assert.include(setCookie, "SameSite=None");
+      assert.include(setCookie, "HttpOnly");
+      assert.include(setCookie, "Secure");
+      assert.include(setCookie, "Path=/");
+      assert.include(setCookie, "Domain=.tabletcommand.com");
+      assert.include(setCookie, "Max-Age=3600");
       assert.equal(resObj.headers.authorization, "Bearer SECRET1");
     });
 

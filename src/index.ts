@@ -5,7 +5,7 @@ import _statusLogger from "./middleware/status-logger";
 
 export { LoggerConfig, StrictLogger, StrictLogMethod, LoggerModule } from "./logger-types";
 export { redactHeaders, redactOriginalURL, redactQuery } from "./middleware/logger";
-export { REDACT_PATHS, MAX_REDACT_DEPTH, pinoCensor } from "./redaction";
+export { REDACT_PATHS, MAX_REDACT_DEPTH, pinoCensor, redactSetCookie } from "./redaction";
 export { isPinoPrettyAvailable } from "./pino-logger";
 
 export const logger = _logger;

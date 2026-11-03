@@ -8,6 +8,7 @@ export declare const redacted = "<redacted>";
 export declare function keepPrefix(value: string): string;
 export declare function redactAuthorization(value: string): string;
 export declare function redactCookie(value: string): string;
+export declare function redactSetCookie(value: string): string;
 export declare function redactorFor(name: string): (value: string) => string;
 export declare function redactHeaderValue(name: string, value: unknown): string | string[];
 export declare function redactHeaders(headers: Request["headers"]): Request["headers"];

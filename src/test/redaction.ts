@@ -2,7 +2,7 @@ import { assert } from "chai";
 import { describe, it } from "node:test";
 import { Writable } from "node:stream";
 import logger from "../pino-logger";
-import { MAX_REDACT_DEPTH } from "../redaction";
+import { MAX_REDACT_DEPTH, redactSetCookie } from "../redaction";
 
 describe("Native Redaction Engine", () => {
   function createCaptureStream(lines: Record<string, unknown>[]) {
@@ -93,6 +93,42 @@ describe("Native Redaction Engine", () => {
     const headers = lines[0].headers as Record<string, string>;
     assert.equal(headers.authorization, "Bearer abcdef1");
     assert.equal(headers.cookie, "session=<redacted>; saml=<redacted>");
+  });
+
+  it("redacts only the first pair value in set-cookie and preserves attributes", () => {
+    const raw =
+      "session=SECRET12345; Path=/; Domain=.tabletcommand.com; Max-Age=3600; HttpOnly; Secure; SameSite=None";
+    const redactedVal = redactSetCookie(raw);
+
+    assert.equal(
+      redactedVal,
+      "session=<redacted>; Path=/; Domain=.tabletcommand.com; Max-Age=3600; HttpOnly; Secure; SameSite=None"
+    );
+
+    // Also verify via pinoCensor in logger
+    const lines: Record<string, unknown>[] = [];
+    const log = logger(
+      { name: "test", logToConsole: true },
+      createCaptureStream(lines)
+    );
+
+    log?.info(
+      {
+        res: {
+          headers: {
+            "set-cookie": raw,
+          },
+        },
+      },
+      "res set-cookie test"
+    );
+
+    assert.equal(lines.length, 1);
+    const res = lines[0].res as { headers: { "set-cookie": string } };
+    assert.equal(
+      res.headers["set-cookie"],
+      "session=<redacted>; Path=/; Domain=.tabletcommand.com; Max-Age=3600; HttpOnly; Secure; SameSite=None"
+    );
   });
 
   it("redacts apikey within nested objects", () => {
