@@ -18,5 +18,5 @@ export declare function redactParamPair(pair: string): string;
 export declare function redactOriginalURL(maybeURL?: string): string;
 export declare const MAX_REDACT_DEPTH = 5;
 export declare const REDACT_PATHS: string[];
-export declare function pinoCensor(value: unknown, path?: string[]): unknown;
+export declare function pinoCensor(value: unknown, path?: (string | symbol)[]): unknown;
 //# sourceMappingURL=redaction.d.ts.map

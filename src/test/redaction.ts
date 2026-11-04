@@ -220,4 +220,77 @@ describe("Native Redaction Engine", () => {
     };
     assert.equal(res.a.b.c.d.e.f.password, "super-secret-password-123");
   });
+
+  it("redacts TitleCase Authorization, Cookie, and Set-Cookie headers", () => {
+    const lines: Record<string, unknown>[] = [];
+    const log = logger(
+      { name: "test", logToConsole: true },
+      createCaptureStream(lines)
+    );
+
+    log?.info(
+      {
+        headers: {
+          Authorization: "Bearer abcdef1234567",
+          Cookie: "session=abcdef1234567; saml=xyz987654321",
+        },
+      },
+      "TitleCase headers"
+    );
+
+    log?.info(
+      {
+        res: {
+          headers: {
+            "Set-Cookie": "session=SECRET12345; Path=/; Domain=.tabletcommand.com; HttpOnly; Secure",
+          },
+        },
+      },
+      "TitleCase Set-Cookie"
+    );
+
+    assert.equal(lines.length, 2);
+    const headers = lines[0].headers as Record<string, string>;
+    assert.equal(headers.Authorization, "Bearer abcdef1");
+    assert.equal(headers.Cookie, "session=<redacted>; saml=<redacted>");
+
+    const res = lines[1].res as { headers: { "Set-Cookie": string } };
+    assert.equal(
+      res.headers["Set-Cookie"],
+      "session=<redacted>; Path=/; Domain=.tabletcommand.com; HttpOnly; Secure"
+    );
+  });
+
+  it("redacts nested TitleCase Authorization in outgoing HTTP/Axios config payloads", () => {
+    const lines: Record<string, unknown>[] = [];
+    const log = logger(
+      { name: "test", logToConsole: true },
+      createCaptureStream(lines)
+    );
+
+    log?.info(
+      {
+        err: {
+          config: {
+            headers: {
+              Authorization: "Bearer token12345678",
+            },
+          },
+        },
+      },
+      "axios error"
+    );
+
+    log?.info(
+      {
+        Authorization: "Bearer token99887766",
+      },
+      "root Authorization"
+    );
+
+    assert.equal(lines.length, 2);
+    const err = lines[0].err as { config: { headers: { Authorization: string } } };
+    assert.equal(err.config.headers.Authorization, "Bearer token12");
+    assert.equal(lines[1].Authorization, "Bearer token99");
+  });
 });

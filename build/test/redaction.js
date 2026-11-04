@@ -143,5 +143,48 @@ const redaction_1 = require("../redaction");
         const res = lines[0];
         chai_1.assert.equal(res.a.b.c.d.e.f.password, "super-secret-password-123");
     });
+    (0, node_test_1.it)("redacts TitleCase Authorization, Cookie, and Set-Cookie headers", () => {
+        const lines = [];
+        const log = (0, pino_logger_1.default)({ name: "test", logToConsole: true }, createCaptureStream(lines));
+        log === null || log === void 0 ? void 0 : log.info({
+            headers: {
+                Authorization: "Bearer abcdef1234567",
+                Cookie: "session=abcdef1234567; saml=xyz987654321",
+            },
+        }, "TitleCase headers");
+        log === null || log === void 0 ? void 0 : log.info({
+            res: {
+                headers: {
+                    "Set-Cookie": "session=SECRET12345; Path=/; Domain=.tabletcommand.com; HttpOnly; Secure",
+                },
+            },
+        }, "TitleCase Set-Cookie");
+        chai_1.assert.equal(lines.length, 2);
+        const headers = lines[0].headers;
+        chai_1.assert.equal(headers.Authorization, "Bearer abcdef1");
+        chai_1.assert.equal(headers.Cookie, "session=<redacted>; saml=<redacted>");
+        const res = lines[1].res;
+        chai_1.assert.equal(res.headers["Set-Cookie"], "session=<redacted>; Path=/; Domain=.tabletcommand.com; HttpOnly; Secure");
+    });
+    (0, node_test_1.it)("redacts nested TitleCase Authorization in outgoing HTTP/Axios config payloads", () => {
+        const lines = [];
+        const log = (0, pino_logger_1.default)({ name: "test", logToConsole: true }, createCaptureStream(lines));
+        log === null || log === void 0 ? void 0 : log.info({
+            err: {
+                config: {
+                    headers: {
+                        Authorization: "Bearer token12345678",
+                    },
+                },
+            },
+        }, "axios error");
+        log === null || log === void 0 ? void 0 : log.info({
+            Authorization: "Bearer token99887766",
+        }, "root Authorization");
+        chai_1.assert.equal(lines.length, 2);
+        const err = lines[0].err;
+        chai_1.assert.equal(err.config.headers.Authorization, "Bearer token12");
+        chai_1.assert.equal(lines[1].Authorization, "Bearer token99");
+    });
 });
 //# sourceMappingURL=redaction.js.map

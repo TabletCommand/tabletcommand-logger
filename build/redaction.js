@@ -192,6 +192,8 @@ const secretKeys = [
     "token",
     "secret",
     "credentials",
+    "authorization",
+    "Authorization",
 ];
 // fast-redact does not support recursive wildcards (**), so we enumerate paths up to MAX_REDACT_DEPTH.
 exports.MAX_REDACT_DEPTH = 5;
@@ -205,29 +207,49 @@ for (const key of secretKeys) {
 }
 exports.REDACT_PATHS = [
     "req.headers.authorization",
+    "req.headers.Authorization",
     "req.headers.cookie",
+    "req.headers.Cookie",
     "req.headers.apikey",
+    "req.headers.apiKey",
     "req.headers.personnelapikey",
+    "req.headers.personnelApiKey",
     "req.headers[\"x-tc-auth-token\"]",
+    "req.headers[\"X-TC-Auth-Token\"]",
+    "req.headers[\"set-cookie\"]",
+    "req.headers[\"Set-Cookie\"]",
     "res.headers.authorization",
+    "res.headers.Authorization",
+    "res.headers.cookie",
+    "res.headers.Cookie",
     "res.headers[\"set-cookie\"]",
+    "res.headers[\"Set-Cookie\"]",
     "headers.authorization",
+    "headers.Authorization",
     "headers.cookie",
+    "headers.Cookie",
     "headers[\"set-cookie\"]",
+    "headers[\"Set-Cookie\"]",
     "headers.apikey",
+    "headers.apiKey",
     "headers.personnelapikey",
+    "headers.personnelApiKey",
     "headers[\"x-tc-auth-token\"]",
+    "headers[\"X-TC-Auth-Token\"]",
     ...secretPaths,
 ];
 function pinoCensor(value, path) {
-    const key = (path && path.length > 0 ? path[path.length - 1] : "").toLowerCase();
-    if (key === "cookie" || (path && path.includes("cookie"))) {
+    const stringSegments = path
+        ? path.filter((s) => typeof s === "string").map((s) => s.toLowerCase())
+        : [];
+    const key = stringSegments.length > 0 ? stringSegments[stringSegments.length - 1] : "";
+    if (key === "cookie" || stringSegments.includes("cookie")) {
         if (typeof value === "string") {
             return redactCookie(value);
         }
         return exports.redacted;
     }
-    if (key === "set-cookie" || (path && path.includes("set-cookie"))) {
+    if (key === "set-cookie" || stringSegments.includes("set-cookie")) {
         if (typeof value === "string") {
             return redactSetCookie(value);
         }
@@ -236,7 +258,7 @@ function pinoCensor(value, path) {
         }
         return exports.redacted;
     }
-    if (key === "authorization" || (path && path.includes("authorization"))) {
+    if (key === "authorization" || stringSegments.includes("authorization")) {
         if (typeof value === "string") {
             return redactAuthorization(value);
         }

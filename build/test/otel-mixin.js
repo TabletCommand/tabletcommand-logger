@@ -39,8 +39,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const chai_1 = require("chai");
 const node_test_1 = require("node:test");
 const node_stream_1 = require("node:stream");
+const node_module_1 = __importDefault(require("node:module"));
 const otel = __importStar(require("@opentelemetry/api"));
 const pino_logger_1 = __importDefault(require("../pino-logger"));
+const otel_1 = require("../otel");
 (0, node_test_1.describe)("OpenTelemetry Mixin", () => {
     function createCaptureStream(lines) {
         return new node_stream_1.Writable({
@@ -86,6 +88,51 @@ const pino_logger_1 = __importDefault(require("../pino-logger"));
         }
         finally {
             otel.trace.getActiveSpan = origGetActiveSpan;
+        }
+    });
+    (0, node_test_1.it)("does not inject all-zero trace IDs when an inactive or NonRecordingSpan is returned", () => {
+        const lines = [];
+        const log = (0, pino_logger_1.default)({ name: "test", logToConsole: true }, createCaptureStream(lines));
+        const origGetActiveSpan = otel.trace.getActiveSpan;
+        // Mock NonRecordingSpan with invalid all-zero IDs
+        otel.trace.getActiveSpan = () => ({
+            spanContext: () => ({
+                traceId: "00000000000000000000000000000000",
+                spanId: "0000000000000000",
+                traceFlags: 0,
+            }),
+        });
+        try {
+            log === null || log === void 0 ? void 0 : log.info({ detail: "test" }, "message with invalid/zero span");
+            chai_1.assert.equal(lines.length, 1);
+            chai_1.assert.isUndefined(lines[0].trace_id);
+            chai_1.assert.isUndefined(lines[0].span_id);
+            chai_1.assert.isUndefined(lines[0].trace_flags);
+            chai_1.assert.equal(lines[0].detail, "test");
+        }
+        finally {
+            otel.trace.getActiveSpan = origGetActiveSpan;
+        }
+    });
+    (0, node_test_1.it)("gracefully returns empty object when @opentelemetry/api cannot be resolved", () => {
+        const mod = node_module_1.default;
+        const origResolve = mod._resolveFilename;
+        mod._resolveFilename = function (request, ...args) {
+            if (request === "@opentelemetry/api") {
+                const err = new Error("Cannot find module @opentelemetry/api");
+                err.code = "MODULE_NOT_FOUND";
+                throw err;
+            }
+            return origResolve.call(this, request, ...args);
+        };
+        try {
+            (0, otel_1.resetOtelForTesting)();
+            const ctx = (0, otel_1.getOtelTraceContext)();
+            chai_1.assert.deepEqual(ctx, {});
+        }
+        finally {
+            mod._resolveFilename = origResolve;
+            (0, otel_1.resetOtelForTesting)();
         }
     });
 });

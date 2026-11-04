@@ -34,7 +34,11 @@ function getOtelTraceContext() {
             return {};
         }
         const spanContext = span.spanContext();
-        if (spanContext && spanContext.traceId && spanContext.spanId) {
+        const isValid = typeof trace.isSpanContextValid === "function"
+            ? trace.isSpanContextValid(spanContext)
+            : (spanContext === null || spanContext === void 0 ? void 0 : spanContext.traceId) !== "00000000000000000000000000000000" &&
+                (spanContext === null || spanContext === void 0 ? void 0 : spanContext.spanId) !== "0000000000000000";
+        if (spanContext && spanContext.traceId && spanContext.spanId && isValid) {
             return {
                 trace_id: spanContext.traceId,
                 span_id: spanContext.spanId,

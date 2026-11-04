@@ -37,7 +37,13 @@ export function getOtelTraceContext(): OtelSpanContext {
       return {};
     }
     const spanContext = span.spanContext();
-    if (spanContext && spanContext.traceId && spanContext.spanId) {
+    const isValid =
+      typeof trace.isSpanContextValid === "function"
+        ? trace.isSpanContextValid(spanContext)
+        : spanContext?.traceId !== "00000000000000000000000000000000" &&
+          spanContext?.spanId !== "0000000000000000";
+
+    if (spanContext && spanContext.traceId && spanContext.spanId && isValid) {
       return {
         trace_id: spanContext.traceId,
         span_id: spanContext.spanId,
