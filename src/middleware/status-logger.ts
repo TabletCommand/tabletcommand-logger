@@ -1,12 +1,10 @@
-import { Logger } from "winston";
-
 import {
   NextFunction,
   Request,
   Response,
 } from "express";
 import _ from "lodash";
-
+import { StrictLogger } from "../logger-types";
 import { redactHeaders, redactOriginalURL, redactQuery } from "./logger";
 
 export { redactQuery };
@@ -41,7 +39,7 @@ export function requestDuration(endTime: Date, startTime?: Date): number {
   return endTime.valueOf() - startTime.valueOf();
 }
 
-export default function statusLogger(logger?: Logger) {
+export default function statusLogger(logger?: StrictLogger | null) {
   return function requestLogger(req: Request, res: Response, next: NextFunction) {
     if (!_.isObject(req._startTime)) {
       req._startTime = new Date();

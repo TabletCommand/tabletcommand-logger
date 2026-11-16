@@ -2,7 +2,7 @@ import { assert } from "chai";
 import { EventEmitter } from "node:events";
 import { describe, it, describe as context } from "node:test";
 import { Request, Response } from "express";
-import { Logger } from "winston";
+import { StrictLogger } from "../logger-types";
 import statusLogger from "../middleware/status-logger";
 
 describe("Status Logger Middleware", function() {
@@ -16,7 +16,7 @@ describe("Status Logger Middleware", function() {
         info: (msg: Record<string, unknown>) => {
           line = msg;
         },
-      } as unknown as Logger;
+      } as unknown as StrictLogger;
       const res = new EventEmitter() as unknown as Response;
       res.statusCode = 200;
       res.json = () => res;

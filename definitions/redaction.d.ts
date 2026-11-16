@@ -1,0 +1,25 @@
+import { Request } from "express";
+import { Query } from "express-serve-static-core";
+export declare const keyHeaders: string[];
+export declare const keyParams: string[];
+export declare function isKeyParam(name: string): boolean;
+export declare function decodeName(name: string): string;
+export declare const redacted = "<redacted>";
+export declare function keepPrefix(value: string): string;
+export declare function redactAuthorization(value: string): string;
+export declare function redactCookie(value: string): string;
+export declare function redactSetCookie(value: string): string;
+export declare function redactorFor(name: string): (value: string) => string;
+export declare function redactHeaderValue(name: string, value: unknown): string | string[];
+export declare function redactHeaders(headers: Request["headers"]): Request["headers"];
+export declare function redactQueryValue(value: Query[string]): Query[string];
+export declare function redactQuery(query: Query): Query;
+export declare function redactParamPair(pair: string): string;
+export declare function redactOriginalURL(maybeURL?: string): string;
+export declare function normalizeKey(key: string): string;
+export type SecretKind = "full" | "prefix" | "authorization" | "cookie" | "set-cookie";
+export declare function secretKind(key: string): SecretKind | null;
+export declare function redactSecretValue(kind: SecretKind, value: unknown): unknown;
+export declare const MAX_REDACT_DEPTH = 10;
+export declare function redactSecrets<T>(value: T): T;
+//# sourceMappingURL=redaction.d.ts.map
