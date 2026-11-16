@@ -33,22 +33,25 @@ Version **4.0.0** is powered by **Pino**, writing structured JSON directly to `p
    - String log levels (`level: "info"`, `"debug"`, `"warn"`, `"error"`).
    - ISO 8601 timestamps (`timestamp: pino.stdTimeFunctions.isoTime`).
    - Base fields contain `service: config.name` and any provided `extraMeta`.
-   - Pretty printing (`pino-pretty`) automatically enabled for local development when `NODE_ENV !== "production"` (bypassed in tests and CI). If `pino-pretty` is not installed, it gracefully falls back to standard NDJSON stdout without crashing.
+   - Pretty printing (`pino-pretty`) is opt-in: enabled when `NODE_ENV === "development"` (and `CI` is unset), `PINO_PRETTY=true`, or `config.pretty: true`. An unset `NODE_ENV` writes NDJSON, so a service missing `NODE_ENV=production` never ships colorized text to Datadog. If `pino-pretty` is not installed, it gracefully falls back to standard NDJSON stdout without crashing.
 
 2. **Strict TypeScript Signatures (`src/logger-types.ts`):**
    - Strict compile-time enforcement of Pino conventions via function overloads:
      - `(obj: object, msg?: string, ...args)`
      - `(msg: string, ...args: primitive[])`
-   - Inverted calls `(msg: string, obj: object)` and `(msg: string, err: Error)` are explicitly rejected via a `never`-typed parameter. Any inverted call triggers an immediate TypeScript compile error.
+     - `error`, `warn` and `fatal` also accept `(err: unknown, msg?: string)`, so a `catch (err)` variable can be logged without a cast.
+   - Inverted calls `(msg: string, obj: object)` and `(msg: string, err: Error)` match no overload: the object-first overload needs an object first, and the string-first overload only takes primitives (`LogArgument`) after the message. Any inverted call triggers an immediate TypeScript compile error.
 
 3. **Native Redaction Engine (`src/redaction.ts`):**
-   - Pino native `fast-redact` paths covering `apikey`, `token`, `password`, `secret`, `headers.authorization`, `headers.cookie`, `headers["set-cookie"]`, etc., enumerated up to `MAX_REDACT_DEPTH = 5` wildcard levels (including numeric array indices such as `req.body.items[0].apikey`).
-   - Custom `pinoCensor` function applies Tablet Command's partial exposure rule:
-     - API keys & tokens: truncated to first 7 characters (`value.substring(0, 7)`).
+   - `redactSecrets()` walks each log object (`formatters.log`), the root bindings (`formatters.bindings`), every child's bindings (`child()` is overridden on the root logger, since pino resets the bindings formatter for children), serialized errors and `req.body`, up to `MAX_REDACT_DEPTH = 10`. It copies on write and never mutates the caller's object.
+   - Keys are matched by `secretKind()`: lowercased with `-`/`_` removed, so one entry covers every spelling. Do not go back to pino `redact` wildcard paths: they match exact keys only and cost ~85µs per log line (the walk costs ~2µs).
+   - Partial exposure rule:
+     - API keys & tokens (`*apikey*`, `*token` except pagination cursors, `partnerKey`, `cadKey`, ...): truncated to first 7 characters (`value.substring(0, 7)`).
      - Authorization headers: preserves scheme (`Bearer `, `Basic `) and truncates credential to 7 characters on both request and response (`res.headers.authorization`).
      - Request Cookies (`cookie`): preserves cookie names, masks values with `<redacted>`.
      - Response Set-Cookie (`set-cookie`): redacts only the first pair's cookie value while keeping security attributes (`Path`, `Domain`, `Max-Age`, `HttpOnly`, `Secure`, `SameSite`) intact for auditing visibility.
-     - Passwords & secrets: completely masked with `<redacted>`.
+     - Passwords, secrets, private/signing/encryption keys, password hash fields (`pass`, `salt`) and personal data (`ssn`, `dateOfBirth`, `licenseNumber`, `doorCode`): completely masked with `<redacted>`.
+     - Booleans, numbers and `null` under a secret name stay readable (`hasAuthSecret`, `minPasswordLength`).
    - Retains and exports URL/header redaction helpers (`redactHeaders`, `redactOriginalURL`, `redactQuery`).
 
 4. **Guarded OpenTelemetry Trace Correlation (`src/otel.ts`):**
@@ -72,7 +75,7 @@ Version **4.0.0** is powered by **Pino**, writing structured JSON directly to `p
 | **Underlying Engine** | `winston`, `datadog-winston`, `winston-daily-rotate-file` | `pino`, `pino-http`, `pino-pretty` (dev) |
 | **Delivery Model** | In-process file rotation + in-process Datadog HTTP transport (dead config in k8s) | `process.stdout` JSON stream collected by k8s Datadog Agent (`containerCollectAll: true`) |
 | **Calling Signatures** | Accepted `(msg, meta)` or `(meta)` flexibly | Strictly requires `(obj, msg)` or `(msg)`. Legacy `(msg, obj)` **fails TypeScript compilation** |
-| **Redaction** | String regex/URL parsing inside middlewares | Pino native `redact: { paths, censor }` covering root & nested JSON, plus URL helpers |
+| **Redaction** | String regex/URL parsing inside middlewares | Key-based walk of log objects, bindings, bodies and errors (case-insensitive), plus URL helpers |
 | **Log Levels** | Hardcoded to `"info"` with no config/env override | Configurable via `config.level` or `LOG_LEVEL` env var (`debug`, `trace`, `info`, `warn`, `error`) |
 | **Trace Correlation** | None | Automatic `trace_id` and `span_id` injection via guarded OTel mixin |
 | **Performance** | Winston format pipeline + event emitter overhead | Zero-overhead Pino serialization, asynchronous formatting, and fast suppression |
@@ -100,7 +103,7 @@ logger.info("user logged in", { userId: user.id });
 logger.error("database query failed", err);
 ```
 
-In v4, TypeScript will reject this at build time (`Argument of type '...' is not assignable to parameter of type 'never'`). Swap arguments so the object or error comes **first**:
+In v4, TypeScript will reject this at build time (`No overload matches this call`, ending in `Argument of type '...' is not assignable to parameter of type 'LogArgument'`). Swap arguments so the object or error comes **first**:
 ```typescript
 // ✅ Correct in v4:
 logger.info({ userId: user.id }, "user logged in");
@@ -132,7 +135,7 @@ npm install @opentelemetry/api
 `tabletcommand-logger` will automatically detect the active span and inject `trace_id` and `span_id` into every log line without additional code.
 
 ### 5. Optional: Enable Local Pretty Printing
-If developers want human-readable, colorized logs when running the service locally in Node (`NODE_ENV !== "production"`), add `pino-pretty` as a development dependency:
+If developers want human-readable, colorized logs when running the service locally, run it with `NODE_ENV=development` (or `PINO_PRETTY=true`) and add `pino-pretty` as a development dependency:
 ```bash
 npm install -D pino-pretty
 ```

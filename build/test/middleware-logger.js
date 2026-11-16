@@ -464,6 +464,99 @@ const pino_logger_1 = __importDefault(require("../pino-logger"));
             chai_1.assert.isDefined(reqObj);
             chai_1.assert.equal(reqObj.body.items[0].apikey, "abcdef1");
         });
+        (0, node_test_1.it)("logs a body parsed after the middleware, and each field once", async () => {
+            const raw = [];
+            const capture = new node_stream_1.Writable({
+                write(chunk, _encoding, callback) {
+                    raw.push(chunk.toString());
+                    callback();
+                },
+            });
+            const log = (0, pino_logger_1.default)({ name: "test-late-body" }, capture);
+            const middleware = (0, logger_1.default)(log);
+            const server = node_http_1.default.createServer((req, res) => {
+                middleware(req, res, () => {
+                    // Stands in for express.json() mounted after the logger.
+                    req.body = { username: "alice", password: "mySecretPassword123" };
+                    res.statusCode = 404;
+                    res.end("missing");
+                });
+            });
+            await new Promise((resolve, reject) => {
+                server.listen(0, () => {
+                    const address = server.address();
+                    if (!address || typeof address === "string") {
+                        server.close();
+                        return reject(new Error("Unable to bind test server"));
+                    }
+                    const postReq = node_http_1.default.request(`http://127.0.0.1:${address.port}/login?apikey=abcdef1234567`, { method: "POST" }, (res) => {
+                        res.resume();
+                        res.on("end", () => {
+                            server.close(() => resolve());
+                        });
+                    });
+                    postReq.on("error", (err) => {
+                        server.close(() => reject(err));
+                    });
+                    postReq.end();
+                });
+            });
+            chai_1.assert.equal(raw.length, 1);
+            const text = raw[0];
+            // Top-level keys only: "method" also appears inside req.
+            for (const key of ["status", "url", "remoteAddress", "httpVersion", "req"]) {
+                const count = text.split(`"${key}":`).length - 1;
+                chai_1.assert.equal(count, 1, `expected one "${key}" key in ${text}`);
+            }
+            const line = JSON.parse(text);
+            chai_1.assert.equal(line.status, 404);
+            chai_1.assert.equal(line.method, "POST");
+            chai_1.assert.equal(line.url, "/login?apikey=abcdef1");
+            const reqObj = line.req;
+            chai_1.assert.equal(reqObj.body.username, "alice");
+            chai_1.assert.equal(reqObj.body.password, "<redacted>");
+            chai_1.assert.equal(reqObj.originalUrl, "/login?apikey=abcdef1");
+            chai_1.assert.equal(line.res.statusCode, 404);
+        });
+        (0, node_test_1.it)("gives handlers a req.log that writes through the logger", async () => {
+            const lines = [];
+            const capture = new node_stream_1.Writable({
+                write(chunk, _encoding, callback) {
+                    lines.push(JSON.parse(chunk.toString()));
+                    callback();
+                },
+            });
+            const log = (0, pino_logger_1.default)({ name: "test-req-log" }, capture);
+            const middleware = (0, logger_1.default)(log);
+            const server = node_http_1.default.createServer((req, res) => {
+                middleware(req, res, () => {
+                    req.log.info({ step: "handler" }, "inside handler");
+                    res.end("ok");
+                });
+            });
+            await new Promise((resolve, reject) => {
+                server.listen(0, () => {
+                    const address = server.address();
+                    if (!address || typeof address === "string") {
+                        server.close();
+                        return reject(new Error("Unable to bind test server"));
+                    }
+                    node_http_1.default.get(`http://127.0.0.1:${address.port}/x`, (res) => {
+                        res.resume();
+                        res.on("end", () => {
+                            server.close(() => resolve());
+                        });
+                    }).on("error", (err) => {
+                        server.close(() => reject(err));
+                    });
+                });
+            });
+            chai_1.assert.equal(lines.length, 2);
+            chai_1.assert.equal(lines[0].msg, "inside handler");
+            chai_1.assert.equal(lines[0].service, "test-req-log");
+            chai_1.assert.isDefined(lines[0].reqId);
+            chai_1.assert.equal(lines[0].reqId, lines[1].reqId);
+        });
     });
 });
 //# sourceMappingURL=middleware-logger.js.map

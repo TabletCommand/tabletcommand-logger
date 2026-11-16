@@ -1,13 +1,15 @@
 export type LogArgument = string | number | boolean | bigint | symbol | null | undefined;
 export interface StrictLogMethod {
     <T extends object>(obj: T, msg?: string, ...args: unknown[]): void;
-    (msg: string, invalidSecondArg: never, ...args: never[]): void;
     (msg: string, ...args: LogArgument[]): void;
 }
+export interface StrictErrorLogMethod extends StrictLogMethod {
+    (err: unknown, msg?: string, ...args: LogArgument[]): void;
+}
 export interface StrictLogger {
-    fatal: StrictLogMethod;
-    error: StrictLogMethod;
-    warn: StrictLogMethod;
+    fatal: StrictErrorLogMethod;
+    error: StrictErrorLogMethod;
+    warn: StrictErrorLogMethod;
     info: StrictLogMethod;
     debug: StrictLogMethod;
     trace: StrictLogMethod;

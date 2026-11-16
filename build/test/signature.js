@@ -68,7 +68,7 @@ const typescript_1 = __importDefault(require("typescript"));
     `;
         const diags = getCompileDiagnostics(invalidSnippet);
         chai_1.assert.isAbove(diags.length, 0, "Expected compilation to fail for inverted call");
-        chai_1.assert.match(diags.join("\n"), /not assignable to parameter of type 'never'/, "Expected error to indicate second argument is not assignable to 'never'");
+        chai_1.assert.match(diags.join("\n"), /not assignable to parameter of type 'LogArgument'/, "Expected error to indicate the object argument is not a LogArgument");
     });
     (0, node_test_1.it)("fails compilation when legacy inverted error call (msg, Error) is used", () => {
         const invalidSnippet = `
@@ -80,7 +80,32 @@ const typescript_1 = __importDefault(require("typescript"));
     `;
         const diags = getCompileDiagnostics(invalidSnippet);
         chai_1.assert.isAbove(diags.length, 0, "Expected compilation to fail for inverted error call");
-        chai_1.assert.match(diags.join("\n"), /not assignable to parameter of type 'never'/, "Expected error to indicate Error argument is not assignable to 'never'");
+        chai_1.assert.match(diags.join("\n"), /not assignable to parameter of type 'LogArgument'/, "Expected error to indicate the Error argument is not a LogArgument");
+    });
+    (0, node_test_1.it)("accepts a caught unknown error first on error, warn and fatal", () => {
+        const snippet = `
+      import { StrictLogger } from "./src/logger-types";
+      declare const log: StrictLogger;
+
+      try {
+        JSON.parse("{");
+      } catch (err) {
+        log.error(err, "parse failed");
+        log.warn(err, "parse failed for %s", "input");
+        log.fatal(err);
+      }
+    `;
+        chai_1.assert.deepEqual(getCompileDiagnostics(snippet), []);
+    });
+    (0, node_test_1.it)("still rejects the inverted call when the second argument is unknown", () => {
+        const snippet = `
+      import { StrictLogger } from "./src/logger-types";
+      declare const log: StrictLogger;
+      declare const err: unknown;
+
+      log.error("something failed", err);
+    `;
+        chai_1.assert.isAbove(getCompileDiagnostics(snippet).length, 0);
     });
 });
 //# sourceMappingURL=signature.js.map

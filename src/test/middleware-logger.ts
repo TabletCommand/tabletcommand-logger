@@ -497,5 +497,113 @@ describe("Logger Middleware", function() {
       assert.isDefined(reqObj);
       assert.equal(reqObj.body.items[0].apikey, "abcdef1");
     });
+
+    it("logs a body parsed after the middleware, and each field once", async () => {
+      const raw: string[] = [];
+      const capture = new Writable({
+        write(chunk: Buffer | string, _encoding: string, callback: (error?: Error | null) => void) {
+          raw.push(chunk.toString());
+          callback();
+        },
+      });
+
+      const log = logger({ name: "test-late-body" }, capture);
+      const middleware = loggerMiddleware(log as StrictLogger);
+
+      const server = http.createServer((req, res) => {
+        middleware(req as unknown as Request, res as unknown as Response, () => {
+          // Stands in for express.json() mounted after the logger.
+          (req as Request).body = { username: "alice", password: "mySecretPassword123" };
+          res.statusCode = 404;
+          res.end("missing");
+        });
+      });
+
+      await new Promise<void>((resolve, reject) => {
+        server.listen(0, () => {
+          const address = server.address();
+          if (!address || typeof address === "string") {
+            server.close();
+            return reject(new Error("Unable to bind test server"));
+          }
+          const postReq = http.request(
+            `http://127.0.0.1:${address.port}/login?apikey=abcdef1234567`,
+            { method: "POST" },
+            (res) => {
+              res.resume();
+              res.on("end", () => {
+                server.close(() => resolve());
+              });
+            }
+          );
+          postReq.on("error", (err) => {
+            server.close(() => reject(err));
+          });
+          postReq.end();
+        });
+      });
+
+      assert.equal(raw.length, 1);
+      const text = raw[0];
+      // Top-level keys only: "method" also appears inside req.
+      for (const key of ["status", "url", "remoteAddress", "httpVersion", "req"]) {
+        const count = text.split(`"${key}":`).length - 1;
+        assert.equal(count, 1, `expected one "${key}" key in ${text}`);
+      }
+
+      const line = JSON.parse(text) as Record<string, unknown>;
+      assert.equal(line.status, 404);
+      assert.equal(line.method, "POST");
+      assert.equal(line.url, "/login?apikey=abcdef1");
+      const reqObj = line.req as { body: { username: string; password: string }; originalUrl: string };
+      assert.equal(reqObj.body.username, "alice");
+      assert.equal(reqObj.body.password, "<redacted>");
+      assert.equal(reqObj.originalUrl, "/login?apikey=abcdef1");
+      assert.equal((line.res as { statusCode: number }).statusCode, 404);
+    });
+
+    it("gives handlers a req.log that writes through the logger", async () => {
+      const lines: Record<string, unknown>[] = [];
+      const capture = new Writable({
+        write(chunk: Buffer | string, _encoding: string, callback: (error?: Error | null) => void) {
+          lines.push(JSON.parse(chunk.toString()) as Record<string, unknown>);
+          callback();
+        },
+      });
+
+      const log = logger({ name: "test-req-log" }, capture);
+      const middleware = loggerMiddleware(log as StrictLogger);
+
+      const server = http.createServer((req, res) => {
+        middleware(req as unknown as Request, res as unknown as Response, () => {
+          (req as Request).log.info({ step: "handler" }, "inside handler");
+          res.end("ok");
+        });
+      });
+
+      await new Promise<void>((resolve, reject) => {
+        server.listen(0, () => {
+          const address = server.address();
+          if (!address || typeof address === "string") {
+            server.close();
+            return reject(new Error("Unable to bind test server"));
+          }
+          http.get(`http://127.0.0.1:${address.port}/x`, (res) => {
+            res.resume();
+            res.on("end", () => {
+              server.close(() => resolve());
+            });
+          }).on("error", (err) => {
+            server.close(() => reject(err));
+          });
+        });
+      });
+
+      assert.equal(lines.length, 2);
+      assert.equal(lines[0].msg, "inside handler");
+      assert.equal(lines[0].service, "test-req-log");
+      assert.isDefined(lines[0].reqId);
+      assert.equal(lines[0].reqId, lines[1].reqId);
+    });
   });
 });

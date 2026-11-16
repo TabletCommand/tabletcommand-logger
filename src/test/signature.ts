@@ -72,8 +72,8 @@ describe("Strict TypeScript Signatures", () => {
     assert.isAbove(diags.length, 0, "Expected compilation to fail for inverted call");
     assert.match(
       diags.join("\n"),
-      /not assignable to parameter of type 'never'/,
-      "Expected error to indicate second argument is not assignable to 'never'"
+      /not assignable to parameter of type 'LogArgument'/,
+      "Expected error to indicate the object argument is not a LogArgument"
     );
   });
 
@@ -90,8 +90,37 @@ describe("Strict TypeScript Signatures", () => {
     assert.isAbove(diags.length, 0, "Expected compilation to fail for inverted error call");
     assert.match(
       diags.join("\n"),
-      /not assignable to parameter of type 'never'/,
-      "Expected error to indicate Error argument is not assignable to 'never'"
+      /not assignable to parameter of type 'LogArgument'/,
+      "Expected error to indicate the Error argument is not a LogArgument"
     );
+  });
+
+  it("accepts a caught unknown error first on error, warn and fatal", () => {
+    const snippet = `
+      import { StrictLogger } from "./src/logger-types";
+      declare const log: StrictLogger;
+
+      try {
+        JSON.parse("{");
+      } catch (err) {
+        log.error(err, "parse failed");
+        log.warn(err, "parse failed for %s", "input");
+        log.fatal(err);
+      }
+    `;
+
+    assert.deepEqual(getCompileDiagnostics(snippet), []);
+  });
+
+  it("still rejects the inverted call when the second argument is unknown", () => {
+    const snippet = `
+      import { StrictLogger } from "./src/logger-types";
+      declare const log: StrictLogger;
+      declare const err: unknown;
+
+      log.error("something failed", err);
+    `;
+
+    assert.isAbove(getCompileDiagnostics(snippet).length, 0);
   });
 });

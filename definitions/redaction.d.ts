@@ -16,7 +16,10 @@ export declare function redactQueryValue(value: Query[string]): Query[string];
 export declare function redactQuery(query: Query): Query;
 export declare function redactParamPair(pair: string): string;
 export declare function redactOriginalURL(maybeURL?: string): string;
-export declare const MAX_REDACT_DEPTH = 5;
-export declare const REDACT_PATHS: string[];
-export declare function pinoCensor(value: unknown, path?: (string | symbol)[]): unknown;
+export declare function normalizeKey(key: string): string;
+export type SecretKind = "full" | "prefix" | "authorization" | "cookie" | "set-cookie";
+export declare function secretKind(key: string): SecretKind | null;
+export declare function redactSecretValue(kind: SecretKind, value: unknown): unknown;
+export declare const MAX_REDACT_DEPTH = 10;
+export declare function redactSecrets<T>(value: T): T;
 //# sourceMappingURL=redaction.d.ts.map

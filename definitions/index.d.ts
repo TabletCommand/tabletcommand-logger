@@ -4,7 +4,7 @@ import _metricsMiddleware, { cleanUpParams } from "./middleware/metrics";
 import _statusLogger from "./middleware/status-logger";
 export { LoggerConfig, StrictLogger, StrictLogMethod, LoggerModule } from "./logger-types";
 export { redactHeaders, redactOriginalURL, redactQuery } from "./middleware/logger";
-export { REDACT_PATHS, MAX_REDACT_DEPTH, pinoCensor, redactSetCookie } from "./redaction";
+export { MAX_REDACT_DEPTH, redactSecrets, redactSetCookie, secretKind } from "./redaction";
 export { isPinoPrettyAvailable } from "./pino-logger";
 export declare const logger: typeof _logger;
 export declare const loggerMiddleware: typeof _loggerMiddleware;

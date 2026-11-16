@@ -10,9 +10,9 @@ Version 4.0.0 uses **Pino** for structured JSON logging to `process.stdout`.
 
 - **Pino JSON stdout engine**: High-performance, low-overhead JSON logging to stdout, ready for container log collection by Datadog Agent.
 - **Strict Compile-Time Signature Enforcement**: Enforces Pino conventions `(obj, msg)` or `(msg)`. Legacy Winston-style inverted calls `(msg, obj)` fail TypeScript compilation with immediate compiler feedback.
-- **Native Redaction**: Automatically truncates sensitive parameters (`apikey`, `token`, `authorization`) to a 7-character prefix, and masks passwords and secrets (`<redacted>`).
+- **Redaction**: Every log object, child binding, request body and serialized error is walked once, matching key names without case, `-` or `_`. Credentials (`apiKey`, `authToken`, `partnerKey`, ...) are cut to a 7-character prefix; passwords, secrets, private keys and personal data are masked (`<redacted>`).
 - **OpenTelemetry Correlation**: Built-in mixin automatically detects active OpenTelemetry spans and injects `trace_id` and `span_id` without requiring OpenTelemetry packages as hard dependencies.
-- **Local Dev Pretty Printing**: Automatically enables `pino-pretty` formatting when `NODE_ENV !== "production"` (outside tests and CI).
+- **Local Dev Pretty Printing**: Enables `pino-pretty` formatting only when asked for: `NODE_ENV=development` (outside CI), `PINO_PRETTY=true`, or `pretty: true` in the config. Any other environment, including an unset `NODE_ENV`, writes NDJSON.
 - **HTTP Middlewares**: Provides `loggerMiddleware` (backed by `pino-http`), `statusLogger` (POST request auditing), and `metricsMiddleware` (statsd integration).
 
 ---
@@ -93,8 +93,12 @@ Credentials and secrets are redacted before leaving the process:
 - Authorization headers (`Bearer <token>`, `Basic <cred>`): Scheme is preserved and the credential behind it is truncated to 7 characters. Both request (`req.headers.authorization`) and response (`res.headers.authorization`) are redacted.
 - Request Cookies (`cookie`): Cookie names are preserved, values are masked with `<redacted>`.
 - Response Set-Cookie (`set-cookie`): Redacts only the first pair's cookie value (`<name>=<redacted>`) while leaving security attributes (`Path`, `Domain`, `Max-Age`, `HttpOnly`, `Secure`, `SameSite`) intact for auditing visibility.
-- Passwords & Secrets (`password`, `secret`, `credentials`): Completely masked with `<redacted>`.
-- Depth Limit (`MAX_REDACT_DEPTH = 5`): Fast-redact enumerates wildcard paths up to 5 levels deep (including numeric array indices such as `req.body.items[0].apikey`). Callers must not nest credentials deeper than 5 levels.
+- Key matching: names are compared lowercased with `-` and `_` removed, so `authToken`, `AUTH_TOKEN` and `auth-token` are the same key. The list in `src/redaction.ts` comes from an audit of `massive-tyrion` and `tabletcommand-backend-models`.
+- Prefix kept (7 characters): any name containing `apikey` (`departmentApiKey`, `x-api-key`, ...), any name ending in `token` except pagination cursors (`accessToken`, `refresh_token`, `x-tc-auth-token`, ...), and `signupKey`, `partnerKey`, `cadKey`, `vendorKey`, `licenseKey`, `licenseCode`, `mark43Key`, `authKey`, `accessCode`, `joinCode`, `jwt`, `authHeader`, `sessionCookie`.
+- Completely masked (`<redacted>`): any name containing `password`, `passwd`, `passphrase`, `secret`, `credential`, `privateKey`, `signingKey` or `encryptionKey`, and `pass`, `pwd`, `auth_pass`, `salt`, `ssn`, `dateOfBirth`, `licenseNumber`, `doorCode`.
+- Booleans, numbers and `null` under a secret name (`hasAuthSecret`, `minPasswordLength`) are left readable.
+- Objects with `toJSON` (Mongoose documents, axios errors) are redacted as they serialize. The caller's object is never changed.
+- Depth Limit (`MAX_REDACT_DEPTH = 10`): values nested deeper are written as they are.
 
 ---
 
@@ -106,4 +110,4 @@ Credentials and secrets are redacted before leaving the process:
 - **Added**: Built-in OpenTelemetry mixin extracting `trace_id` and `span_id` when active spans exist.
 - **Added**: Express HTTP middleware powered by `pino-http` with response and request header redaction (`res.headers["set-cookie"]`, `res.headers.authorization`).
 - **Added**: Configurable and automatic pretty printing via `pino-pretty` in local development with fallback to NDJSON stdout.
-- **Added**: Native fast redaction up to 5 wildcard levels (`MAX_REDACT_DEPTH = 5`).
+- **Added**: Key-based redaction of log objects, bindings, request bodies and errors, up to 10 levels deep (`MAX_REDACT_DEPTH = 10`).

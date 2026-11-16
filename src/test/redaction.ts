@@ -154,71 +154,184 @@ describe("Native Redaction Engine", () => {
     assert.equal(payload.account.apikey, "abcdef1");
   });
 
-  it("redacts secret at MAX_REDACT_DEPTH (5 levels deep)", () => {
-    assert.equal(MAX_REDACT_DEPTH, 5);
+  function nest(levels: number, leaf: Record<string, unknown>): Record<string, unknown> {
+    let value = leaf;
+    for (let i = 0; i < levels; i++) {
+      value = { [`l${i}`]: value };
+    }
+    return value;
+  }
+
+  function leafAt(line: Record<string, unknown>, levels: number): Record<string, unknown> {
+    let value = line;
+    for (let i = levels - 1; i >= 0; i--) {
+      value = value[`l${i}`] as Record<string, unknown>;
+    }
+    return value;
+  }
+
+  it(`redacts a secret ${MAX_REDACT_DEPTH} levels deep`, () => {
+    assert.equal(MAX_REDACT_DEPTH, 10);
     const lines: Record<string, unknown>[] = [];
-    const log = logger(
-      { name: "test", logToConsole: true },
-      createCaptureStream(lines)
-    );
+    const log = logger({ name: "test", logToConsole: true }, createCaptureStream(lines));
 
-    // 5 levels of nesting: a -> b -> c -> d -> e -> password
-    log?.info(
-      {
-        a: {
-          b: {
-            c: {
-              d: {
-                e: {
-                  password: "super-secret-password-123",
-                },
-              },
-            },
-          },
-        },
-      },
-      "depth 5 test"
-    );
+    log?.info(nest(MAX_REDACT_DEPTH, { password: "super-secret-password-123" }), "depth test");
 
-    assert.equal(lines.length, 1);
-    const res = lines[0] as {
-      a: { b: { c: { d: { e: { password: string } } } } };
-    };
-    assert.equal(res.a.b.c.d.e.password, "<redacted>");
+    assert.equal(leafAt(lines[0], MAX_REDACT_DEPTH).password, "<redacted>");
   });
 
-  it("preserves secret beyond MAX_REDACT_DEPTH (6 levels deep) as documented ceiling", () => {
+  it("leaves a secret deeper than MAX_REDACT_DEPTH as the documented ceiling", () => {
     const lines: Record<string, unknown>[] = [];
-    const log = logger(
-      { name: "test", logToConsole: true },
-      createCaptureStream(lines)
-    );
+    const log = logger({ name: "test", logToConsole: true }, createCaptureStream(lines));
 
-    // 6 levels of nesting: a -> b -> c -> d -> e -> f -> password
-    log?.info(
-      {
-        a: {
-          b: {
-            c: {
-              d: {
-                e: {
-                  f: {
-                    password: "super-secret-password-123",
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-      "depth 6 test"
-    );
+    log?.info(nest(MAX_REDACT_DEPTH + 1, { password: "super-secret-password-123" }), "depth test");
 
-    assert.equal(lines.length, 1);
-    const res = lines[0] as {
-      a: { b: { c: { d: { e: { f: { password: string } } } } } };
-    };
-    assert.equal(res.a.b.c.d.e.f.password, "super-secret-password-123");
+    assert.equal(leafAt(lines[0], MAX_REDACT_DEPTH + 1).password, "super-secret-password-123");
+  });
+
+  it("matches key names without case, dashes or underscores", () => {
+    const lines: Record<string, unknown>[] = [];
+    const log = logger({ name: "test", logToConsole: true }, createCaptureStream(lines));
+
+    log?.info({
+      Password: "hunter2hunter2",
+      APIKEY: "abcdef1234567",
+      "X-API-Key": "abcdef1234567",
+      access_token: "abcdef1234567",
+      "AUTH-TOKEN": "abcdef1234567",
+    }, "case test");
+
+    const line = lines[0];
+    assert.equal(line.Password, "<redacted>");
+    assert.equal(line.APIKEY, "abcdef1");
+    assert.equal(line["X-API-Key"], "abcdef1");
+    assert.equal(line.access_token, "abcdef1");
+    assert.equal(line["AUTH-TOKEN"], "abcdef1");
+  });
+
+  it("cuts the credential names found in massive-tyrion to 7 characters", () => {
+    const names = [
+      "authToken", "accessToken", "refreshToken", "refresh_token", "idToken", "id_token",
+      "sessionToken", "superAdminSessionToken", "deviceToken", "zonehavenToken", "faToken",
+      "videoGatewayToken", "x-tc-auth-token", "apiToken", "mark43ApiToken", "authTokenPlainText",
+      "departmentApiKey", "agencyApiKey", "watchDutyApiKey", "arcgisApiKey", "freshdeskApiKey",
+      "googleApiKey", "webApiKey", "apiKeyReadOnly", "apiKeyManagement", "personnelApiKey",
+      "partnerKey", "x-partner-key", "cadKey", "vendorKey", "licenseKey", "licenseCode", "mark43Key",
+      "authKey", "accessCode", "joinCode", "jwt", "authHeader", "sessionCookie", "signupKey",
+    ];
+    const lines: Record<string, unknown>[] = [];
+    const log = logger({ name: "test", logToConsole: true }, createCaptureStream(lines));
+
+    log?.info({ body: Object.fromEntries(names.map((name) => [name, "abcdef1234567"])) }, "names");
+
+    const body = lines[0].body as Record<string, string>;
+    for (const name of names) {
+      assert.equal(body[name], "abcdef1", name);
+    }
+  });
+
+  it("masks secret material and personal data completely", () => {
+    const names = [
+      "authSecret", "authSecretPlainText", "secretPlainText", "authKeySecret", "keySecret",
+      "clientSecret", "client_secret", "webhookSecret", "jwtSecret", "droneVideoJwtSecret",
+      "decryptedSecret", "onetimesecret", "secretAccessKey", "credential", "credentials",
+      "privateKey", "sshPrivateKey", "jwtSigningKey", "mailgunSigningKey", "encryptionKey",
+      "esriEncryptionKey", "esriEncryptionPassword", "initialPassword", "confirmPassword",
+      "pass", "pwd", "auth_pass", "salt", "ssn", "dateOfBirth", "licenseNumber", "doorCode",
+    ];
+    const lines: Record<string, unknown>[] = [];
+    const log = logger({ name: "test", logToConsole: true }, createCaptureStream(lines));
+
+    log?.info({ body: Object.fromEntries(names.map((name) => [name, "abcdef1234567"])) }, "names");
+
+    const body = lines[0].body as Record<string, string>;
+    for (const name of names) {
+      assert.equal(body[name], "<redacted>", name);
+    }
+  });
+
+  it("keeps flags, settings and pagination cursors readable", () => {
+    const lines: Record<string, unknown>[] = [];
+    const log = logger({ name: "test", logToConsole: true }, createCaptureStream(lines));
+
+    log?.info({
+      hasAuthSecret: true,
+      minPasswordLength: 8,
+      useSSHKey: false,
+      tokenTTLSeconds: 3600,
+      nextPageToken: "cursor-abcdef1234567",
+      paginationToken: "cursor-abcdef1234567",
+      cacheKey: "dept:1234567890",
+    }, "flags");
+
+    const line = lines[0];
+    assert.equal(line.hasAuthSecret, true);
+    assert.equal(line.minPasswordLength, 8);
+    assert.equal(line.useSSHKey, false);
+    assert.equal(line.tokenTTLSeconds, 3600);
+    assert.equal(line.nextPageToken, "cursor-abcdef1234567");
+    assert.equal(line.paginationToken, "cursor-abcdef1234567");
+    assert.equal(line.cacheKey, "dept:1234567890");
+  });
+
+  it("redacts secrets inside a whole auth object and in arrays", () => {
+    const lines: Record<string, unknown>[] = [];
+    const log = logger({ name: "test", logToConsole: true }, createCaptureStream(lines));
+
+    log?.info({
+      auth: { username: "alice", password: "hunter2hunter2", sshPrivateKey: "-----BEGIN KEY-----" },
+      users: [{ name: "a", authToken: "abcdef1234567" }, { name: "b", pass: "hash", salt: "salt" }],
+    }, "auth");
+
+    const auth = lines[0].auth as Record<string, string>;
+    assert.deepEqual(auth, { username: "alice", password: "<redacted>", sshPrivateKey: "<redacted>" });
+    const users = lines[0].users as Record<string, string>[];
+    assert.deepEqual(users, [
+      { name: "a", authToken: "abcdef1" },
+      { name: "b", pass: "<redacted>", salt: "<redacted>" },
+    ]);
+  });
+
+  it("redacts what a toJSON object such as a Mongoose document writes", () => {
+    const lines: Record<string, unknown>[] = [];
+    const log = logger({ name: "test", logToConsole: true }, createCaptureStream(lines));
+    class Doc {
+      toJSON() {
+        return { email: "a@b.c", pass: "hash", token: "abcdef1234567" };
+      }
+    }
+
+    log?.info({ user: new Doc() }, "doc");
+
+    assert.deepEqual(lines[0].user, { email: "a@b.c", pass: "<redacted>", token: "abcdef1" });
+  });
+
+  it("redacts child bindings and serialized errors", () => {
+    const lines: Record<string, unknown>[] = [];
+    const log = logger({ name: "test", logToConsole: true }, createCaptureStream(lines));
+    const err = Object.assign(new Error("request failed"), {
+      config: { headers: { Authorization: "Bearer abcdef1234567", "x-api-key": "abcdef1234567" } },
+    });
+
+    log?.child({ partnerKey: "abcdef1234567" }).error(err, "failed");
+
+    const line = lines[0];
+    assert.equal(line.partnerKey, "abcdef1");
+    const config = (line.err as { config: { headers: Record<string, string> } }).config;
+    assert.equal(config.headers.Authorization, "Bearer abcdef1");
+    assert.equal(config.headers["x-api-key"], "abcdef1");
+    assert.equal((line.err as { message: string }).message, "request failed");
+  });
+
+  it("leaves the caller's object unchanged", () => {
+    const lines: Record<string, unknown>[] = [];
+    const log = logger({ name: "test", logToConsole: true }, createCaptureStream(lines));
+    const payload = { user: { name: "alice", password: "hunter2hunter2" } };
+
+    log?.info(payload, "payload");
+
+    assert.equal(payload.user.password, "hunter2hunter2");
+    assert.equal((lines[0].user as Record<string, string>).password, "<redacted>");
   });
 
   it("redacts TitleCase Authorization, Cookie, and Set-Cookie headers", () => {

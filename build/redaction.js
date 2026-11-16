@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.REDACT_PATHS = exports.MAX_REDACT_DEPTH = exports.redacted = exports.keyParams = exports.keyHeaders = void 0;
+exports.MAX_REDACT_DEPTH = exports.redacted = exports.keyParams = exports.keyHeaders = void 0;
 exports.isKeyParam = isKeyParam;
 exports.decodeName = decodeName;
 exports.keepPrefix = keepPrefix;
@@ -17,7 +17,10 @@ exports.redactQueryValue = redactQueryValue;
 exports.redactQuery = redactQuery;
 exports.redactParamPair = redactParamPair;
 exports.redactOriginalURL = redactOriginalURL;
-exports.pinoCensor = pinoCensor;
+exports.normalizeKey = normalizeKey;
+exports.secretKind = secretKind;
+exports.redactSecretValue = redactSecretValue;
+exports.redactSecrets = redactSecrets;
 const lodash_1 = __importDefault(require("lodash"));
 // Each of these authenticates a request on its own, so a log line that keeps the whole
 // value is a live credential. The header stays, cut to a 7-character prefix: enough to
@@ -181,98 +184,168 @@ function redactOriginalURL(maybeURL) {
     const parts = maybeURL.substring(queryStart + 1).split(/([?&])/);
     return path + parts.map((part, index) => (index % 2 === 0 ? redactParamPair(part) : part)).join("");
 }
-const secretKeys = [
-    "apikey",
-    "apiKey",
-    "personnelapikey",
-    "personnelApiKey",
-    "signupkey",
-    "signupKey",
+// Key names are compared lowercased with "-" and "_" removed, so authToken, auth_token,
+// AUTH-TOKEN and x-api-key all match without listing each spelling. The names come from an
+// audit of massive-tyrion and tabletcommand-backend-models (request bodies, model fields,
+// outgoing request configs).
+function normalizeKey(key) {
+    return key.toLowerCase().replace(/[-_]/g, "");
+}
+// Values under these keys go entirely: a prefix of a password, private key, SSN or door
+// code gives away too much of it.
+const fullKeyParts = [
     "password",
-    "token",
+    "passwd",
+    "passphrase",
     "secret",
-    "credentials",
-    "authorization",
-    "Authorization",
+    "credential",
+    "privatekey",
+    "signingkey",
+    "encryptionkey",
 ];
-// fast-redact does not support recursive wildcards (**), so we enumerate paths up to MAX_REDACT_DEPTH.
-exports.MAX_REDACT_DEPTH = 5;
-const secretPaths = [];
-for (const key of secretKeys) {
-    let prefix = "";
-    for (let depth = 0; depth <= exports.MAX_REDACT_DEPTH; depth++) {
-        secretPaths.push(prefix ? `${prefix}.${key}` : key);
-        prefix = prefix ? `${prefix}.*` : "*";
+const fullKeys = new Set([
+    "pass", // user password hash
+    "pwd",
+    "authpass",
+    "salt",
+    "ssn",
+    "dateofbirth",
+    "licensenumber",
+    "doorcode",
+]);
+// Values under these keys keep a 7-character prefix, enough to tell two keys apart.
+const prefixKeyParts = [
+    "apikey", // apiKey, departmentApiKey, watchDutyApiKey, x-api-key, apiKeyReadOnly, ...
+];
+const prefixKeys = new Set([
+    "signupkey",
+    "partnerkey",
+    "xpartnerkey",
+    "cadkey",
+    "vendorkey",
+    "licensekey",
+    "licensecode",
+    "mark43key",
+    "authkey",
+    "accesscode",
+    "joincode",
+    "jwt",
+    "authheader",
+    "sessioncookie",
+    "readonlysessioncookie",
+    "authtokenplaintext",
+]);
+// Pagination cursors end in "token" but carry no credential.
+const notSecretTokens = ["pagetoken", "paginationtoken"];
+function secretKind(key) {
+    const name = normalizeKey(key);
+    if (name === "authorization") {
+        return "authorization";
+    }
+    if (name === "cookie" || name === "cookies") {
+        return "cookie";
+    }
+    if (name === "setcookie") {
+        return "set-cookie";
+    }
+    if (fullKeys.has(name) || fullKeyParts.some((part) => name.includes(part))) {
+        return "full";
+    }
+    if (prefixKeys.has(name) || prefixKeyParts.some((part) => name.includes(part))) {
+        return "prefix";
+    }
+    // accessToken, refresh_token, idToken, sessionToken, x-tc-auth-token, deviceToken, ...
+    if (name.endsWith("token") && !notSecretTokens.some((part) => name.endsWith(part))) {
+        return "prefix";
+    }
+    return null;
+}
+function redactString(kind, value) {
+    switch (kind) {
+        case "full":
+            return exports.redacted;
+        case "authorization":
+            return redactAuthorization(value);
+        case "cookie":
+            return redactCookie(value);
+        case "set-cookie":
+            return redactSetCookie(value);
+        default:
+            return keepPrefix(value);
     }
 }
-exports.REDACT_PATHS = [
-    "req.headers.authorization",
-    "req.headers.Authorization",
-    "req.headers.cookie",
-    "req.headers.Cookie",
-    "req.headers.apikey",
-    "req.headers.apiKey",
-    "req.headers.personnelapikey",
-    "req.headers.personnelApiKey",
-    "req.headers[\"x-tc-auth-token\"]",
-    "req.headers[\"X-TC-Auth-Token\"]",
-    "req.headers[\"set-cookie\"]",
-    "req.headers[\"Set-Cookie\"]",
-    "res.headers.authorization",
-    "res.headers.Authorization",
-    "res.headers.cookie",
-    "res.headers.Cookie",
-    "res.headers[\"set-cookie\"]",
-    "res.headers[\"Set-Cookie\"]",
-    "headers.authorization",
-    "headers.Authorization",
-    "headers.cookie",
-    "headers.Cookie",
-    "headers[\"set-cookie\"]",
-    "headers[\"Set-Cookie\"]",
-    "headers.apikey",
-    "headers.apiKey",
-    "headers.personnelapikey",
-    "headers.personnelApiKey",
-    "headers[\"x-tc-auth-token\"]",
-    "headers[\"X-TC-Auth-Token\"]",
-    ...secretPaths,
-];
-function pinoCensor(value, path) {
-    const stringSegments = path
-        ? path.filter((s) => typeof s === "string").map((s) => s.toLowerCase())
-        : [];
-    const key = stringSegments.length > 0 ? stringSegments[stringSegments.length - 1] : "";
-    if (key === "cookie" || stringSegments.includes("cookie")) {
-        if (typeof value === "string") {
-            return redactCookie(value);
-        }
-        return exports.redacted;
-    }
-    if (key === "set-cookie" || stringSegments.includes("set-cookie")) {
-        if (typeof value === "string") {
-            return redactSetCookie(value);
-        }
-        if (Array.isArray(value)) {
-            return value.map((entry) => (typeof entry === "string" ? redactSetCookie(entry) : exports.redacted));
-        }
-        return exports.redacted;
-    }
-    if (key === "authorization" || stringSegments.includes("authorization")) {
-        if (typeof value === "string") {
-            return redactAuthorization(value);
-        }
-        return exports.redacted;
-    }
-    if (key.includes("password") || key.includes("secret") || key.includes("credentials")) {
-        return exports.redacted;
-    }
+// Booleans, numbers and null under a secret name are flags and settings (hasAuthSecret,
+// minPasswordLength), not secrets, so they stay readable.
+function redactSecretValue(kind, value) {
     if (typeof value === "string") {
-        return keepPrefix(value);
+        return redactString(kind, value);
     }
     if (Array.isArray(value)) {
-        return value.map((entry) => (typeof entry === "string" ? keepPrefix(entry) : exports.redacted));
+        return value.map((entry) => (typeof entry === "string" ? redactString(kind, entry) : exports.redacted));
+    }
+    if (value === null || typeof value === "boolean" || typeof value === "number") {
+        return value;
     }
     return exports.redacted;
+}
+// Deeper than this the walk stops and leaves the value as it is. It bounds the cost of a
+// large or cyclic object; real log payloads sit well inside it.
+exports.MAX_REDACT_DEPTH = 10;
+function isPlainObject(value) {
+    const proto = Object.getPrototypeOf(value);
+    return proto === Object.prototype || proto === null;
+}
+function hasToJSON(value) {
+    return typeof value.toJSON === "function";
+}
+function walk(value, depth) {
+    if (value === null || typeof value !== "object" || depth > exports.MAX_REDACT_DEPTH) {
+        return value;
+    }
+    // Mongoose documents, axios errors and the like serialize through toJSON, so redact
+    // what will actually be written. Other class instances (raw req/res, Error) are left
+    // to their serializers.
+    let source = value;
+    if (!Array.isArray(value) && !isPlainObject(value)) {
+        if (!hasToJSON(value) || value instanceof Date) {
+            return value;
+        }
+        source = value.toJSON();
+        if (source === null || typeof source !== "object") {
+            return source;
+        }
+        if (!Array.isArray(source) && !isPlainObject(source)) {
+            return source;
+        }
+    }
+    if (Array.isArray(source)) {
+        let copy = null;
+        source.forEach((entry, index) => {
+            const next = walk(entry, depth + 1);
+            if (next !== entry) {
+                copy = copy || source.slice();
+                copy[index] = next;
+            }
+        });
+        return copy || source;
+    }
+    // Copy on write: the caller's object is never changed, and an object with nothing to
+    // redact is returned as it is.
+    const record = source;
+    let copy = null;
+    for (const key of Object.keys(record)) {
+        const entry = record[key];
+        const kind = secretKind(key);
+        const next = kind ? redactSecretValue(kind, entry) : walk(entry, depth + 1);
+        if (next !== entry) {
+            copy = copy || { ...record };
+            copy[key] = next;
+        }
+    }
+    return copy || source;
+}
+// Redacts every secret-named key in a log object, bindings or serialized value.
+function redactSecrets(value) {
+    return walk(value, 0);
 }
 //# sourceMappingURL=redaction.js.map

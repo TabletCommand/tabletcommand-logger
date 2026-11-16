@@ -6,6 +6,7 @@ import {
   redactHeaders,
   redactOriginalURL,
   redactQuery,
+  redactSecrets,
 } from "../redaction";
 
 export { redactHeaders, redactOriginalURL, redactQuery };
@@ -19,46 +20,56 @@ export default function loggerMiddleware(logger?: StrictLogger | null) {
 
   type ExtendedLogger = StrictLogger & {
     child?: (bindings?: Record<string, unknown>) => StrictLogger;
-    levels?: { values: Record<string, number> };
     [key: symbol]: unknown;
   };
   const anyLog = logger as ExtendedLogger;
   const asJson = (pino.symbols as Record<string, symbol>).asJsonSym;
-  const isPinoInstance =
-    typeof (anyLog as Record<symbol, unknown>)[asJson] === "function" ||
-    (typeof anyLog.child === "function" && Boolean(anyLog.levels));
+  const isPinoInstance = typeof (anyLog as Record<symbol, unknown>)[asJson] === "function";
 
-  if (isPinoInstance && typeof (anyLog as Record<symbol, unknown>)[asJson] === "function") {
+  if (isPinoInstance) {
+    // pino-http binds `req` (and customProps) to a child logger when the request arrives,
+    // before body parsers run, and calls customProps again on finish. Binding there loses
+    // req.body and writes every custom field twice. Instead keep the arrival child quiet
+    // (reqId only) and build the whole access line once, when the response finishes.
+    const accessFields = (req: Request, res: Response) => ({
+      remoteAddress: req.ip || req.socket?.remoteAddress,
+      method: req.method,
+      url: redactOriginalURL(req.originalUrl || req.url || ""),
+      protocol: req.protocol,
+      hostname: req.hostname,
+      httpVersion: req.httpVersionMajor
+        ? `${req.httpVersionMajor}.${req.httpVersionMinor}`
+        : req.httpVersion,
+      userAgent: req.headers ? req.headers["user-agent"] : undefined,
+      req,
+      status: res.statusCode ? res.statusCode : 0,
+    });
+
     const pHttp = pinoHttp({
       logger: anyLog as unknown as pino.Logger,
-      customProps: (req: unknown, res: unknown) => {
-        const expressReq = req as Request;
-        const expressRes = res as Response;
-        const originalUrl = expressReq.originalUrl || expressReq.url || "";
-        return {
-          remoteAddress: expressReq.ip || expressReq.socket?.remoteAddress,
-          method: expressReq.method,
-          url: redactOriginalURL(originalUrl),
-          protocol: expressReq.protocol,
-          hostname: expressReq.hostname,
-          httpVersion: expressReq.httpVersionMajor
-            ? `${expressReq.httpVersionMajor}.${expressReq.httpVersionMinor}`
-            : expressReq.httpVersion,
-          userAgent: expressReq.headers ? expressReq.headers["user-agent"] : undefined,
-          status: expressRes.statusCode ? expressRes.statusCode : 0,
-        };
-      },
+      quietReqLogger: true,
+      quietResLogger: true,
+      customSuccessObject: (req: unknown, res: unknown, val: Record<string, unknown>) => ({
+        ...accessFields(req as Request, res as Response),
+        ...val,
+      }),
+      customErrorObject: (req: unknown, res: unknown, _err: unknown, val: Record<string, unknown>) => ({
+        ...accessFields(req as Request, res as Response),
+        ...val,
+      }),
       serializers: {
         req: (req: unknown) => {
           const r = req as Request & { raw?: Request };
           const originalUrl = r.raw?.originalUrl || r.originalUrl || r.url || "";
           return {
-            body: r.raw?.body ?? r.body,
+            body: redactSecrets(r.raw?.body ?? r.body),
             headers: redactHeaders(r.headers || {}),
             method: r.method,
             originalUrl: redactOriginalURL(originalUrl),
           };
         },
+        // pino-http hands this the already serialized error.
+        err: (err: unknown) => redactSecrets(err && typeof err === "object" ? { ...err } : err),
         res: (res: unknown) => {
           const r = res as Response & {
             getHeaders?: () => Record<string, unknown>;
@@ -87,7 +98,7 @@ export default function loggerMiddleware(logger?: StrictLogger | null) {
   // Fallback for mocks or custom logger implementations
   return function accessLogMiddleware(req: Request, res: Response, next: NextFunction) {
     if (typeof anyLog.child === "function" && !req.log) {
-      req.log = anyLog.child() as unknown as pino.Logger;
+      req.log = anyLog.child({}) as unknown as pino.Logger;
     }
 
     res.on("finish", () => {

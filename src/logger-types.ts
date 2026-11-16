@@ -1,20 +1,26 @@
 export type LogArgument = string | number | boolean | bigint | symbol | null | undefined;
 
+// The inverted Winston call `(msg, obj)` matches neither overload: the first needs an
+// object first, the second only takes primitives after the message.
 export interface StrictLogMethod {
   // 1. Structured object first (Pino convention)
   <T extends object>(obj: T, msg?: string, ...args: unknown[]): void;
 
-  // 2. Compile-time rejection of legacy inverted call (msg: string, obj: object)
-  (msg: string, invalidSecondArg: never, ...args: never[]): void;
-
-  // 3. String message only, followed by optional primitive interpolation values
+  // 2. String message only, followed by optional primitive interpolation values
   (msg: string, ...args: LogArgument[]): void;
 }
 
+// error/warn/fatal also take a caught value, which is `unknown` under strict mode, so
+// `catch (err) { logger.error(err, "msg") }` compiles without a cast. The message must
+// still be a string, so the inverted `(msg, obj)` call stays a compile error.
+export interface StrictErrorLogMethod extends StrictLogMethod {
+  (err: unknown, msg?: string, ...args: LogArgument[]): void;
+}
+
 export interface StrictLogger {
-  fatal: StrictLogMethod;
-  error: StrictLogMethod;
-  warn: StrictLogMethod;
+  fatal: StrictErrorLogMethod;
+  error: StrictErrorLogMethod;
+  warn: StrictErrorLogMethod;
   info: StrictLogMethod;
   debug: StrictLogMethod;
   trace: StrictLogMethod;
