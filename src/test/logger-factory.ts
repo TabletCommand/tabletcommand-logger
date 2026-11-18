@@ -38,7 +38,9 @@ describe("Logger Factory", () => {
     assert.equal(line.level, "info");
     assert.equal(line.msg, "user logged in");
     assert.equal(line.action, "login");
-    assert.isString(line.time);
+    assert.isString(line.timestamp);
+    assert.isFalse(Number.isNaN(Date.parse(line.timestamp as string)));
+    assert.notProperty(line, "time");
   });
 
   it("formats level as string label", () => {

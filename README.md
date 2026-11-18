@@ -2,7 +2,7 @@
 
 Tablet Command shared logging and metrics library for Node.js services.
 
-Version 4.0.0 uses **Pino** for structured JSON logging to `process.stdout`.
+Version 4.0.1 uses **Pino** for structured JSON logging to `process.stdout`.
 
 ---
 
@@ -103,6 +103,9 @@ Credentials and secrets are redacted before leaving the process:
 ---
 
 ## Changelog
+
+### 4.0.1
+- **Fixed**: The log date is written to `timestamp` instead of pino's default `time`, so Datadog dates each line when it was logged rather than when it was ingested.
 
 ### 4.0.0
 - **Breaking**: Migrated from Winston to Pino for high-performance JSON logging directly to `stdout`.

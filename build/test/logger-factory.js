@@ -67,7 +67,9 @@ const pino_logger_1 = __importStar(require("../pino-logger"));
         chai_1.assert.equal(line.level, "info");
         chai_1.assert.equal(line.msg, "user logged in");
         chai_1.assert.equal(line.action, "login");
-        chai_1.assert.isString(line.time);
+        chai_1.assert.isString(line.timestamp);
+        chai_1.assert.isFalse(Number.isNaN(Date.parse(line.timestamp)));
+        chai_1.assert.notProperty(line, "time");
     });
     (0, node_test_1.it)("formats level as string label", () => {
         const lines = [];
