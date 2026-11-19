@@ -31,7 +31,7 @@ Version **4.0.0** is powered by **Pino**, writing structured JSON directly to `p
 1. **Pino stdout Engine (`src/pino-logger.ts`):**
    - Fast JSON logging to `process.stdout`.
    - String log levels (`level: "info"`, `"debug"`, `"warn"`, `"error"`).
-   - ISO 8601 timestamps (`timestamp: pino.stdTimeFunctions.isoTime`).
+   - ISO 8601 timestamps written to a `timestamp` field, not pino's default `time`: Datadog only reads the log date from `timestamp`, and falls back to ingestion time otherwise.
    - Base fields contain `service: config.name` and any provided `extraMeta`.
    - Pretty printing (`pino-pretty`) is opt-in: enabled when `NODE_ENV === "development"` (and `CI` is unset), `PINO_PRETTY=true`, or `config.pretty: true`. An unset `NODE_ENV` writes NDJSON, so a service missing `NODE_ENV=production` never ships colorized text to Datadog. If `pino-pretty` is not installed, it gracefully falls back to standard NDJSON stdout without crashing.
 

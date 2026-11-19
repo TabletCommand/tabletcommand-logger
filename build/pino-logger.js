@@ -63,7 +63,9 @@ function logger(config, customDestination) {
             // object for the walk to enter.
             err: (err) => (0, redaction_1.redactSecrets)({ ...pino_1.default.stdSerializers.err(err) }),
         },
-        timestamp: pino_1.default.stdTimeFunctions.isoTime,
+        // Datadog reads the log date from "timestamp", not pino's default "time". Without
+        // this, every line is dated when the agent ingests it.
+        timestamp: () => `,"timestamp":"${new Date().toISOString()}"`,
         mixin() {
             return (0, otel_1.getOtelTraceContext)();
         },
@@ -77,6 +79,7 @@ function logger(config, customDestination) {
                 target: "pino-pretty",
                 options: {
                     colorize: true,
+                    timestampKey: "timestamp",
                 },
             },
         }));
